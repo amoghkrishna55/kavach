@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,20 +9,33 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Camera,
   useCameraDevice,
   useCodeScanner,
 } from 'react-native-vision-camera';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { verifySignature } from '../utils/keys';
+import { RootStackParamList } from '../../App';
+import { fetchAndStorePemFile, getStoredPemFile } from '../utils/keys';
+
+type ScannerScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Scanner'
+>;
 
 const ScannerScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<ScannerScreenNavigationProp>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
+  const [pem, setPem] = useState(false);
+  const [pemData, setPemData] = useState<string | null>(null);
   const device = useCameraDevice('back');
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const getCameraPermissions = async () => {
@@ -30,53 +43,46 @@ const ScannerScreen = () => {
       setHasPermission(status === 'granted');
     };
 
+    const checkPem = async () => {
+      try {
+        const data = await getStoredPemFile();
+        if (!data) {
+          setPem(false);
+        } else {
+          setPem(true);
+          setPemData(data);
+        }
+      } catch (error) {
+        console.error('Error checking PEM file:', error);
+      }
+    };
+
     getCameraPermissions();
+    checkPem();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setScanned(false);
+    }, []),
+  );
 
   const codeScanner = useCodeScanner({
     codeTypes: ['qr'],
     onCodeScanned: codes => {
-      // if (scanned || codes.length === 0) return;
-
-      handleBarCodeScanned(codes[0].value || '');
-      setScanned(true);
+      if (!scanned && codes.length > 0 && codes[0].value) {
+        handleBarCodeScanned(codes[0].value);
+      }
     },
   });
 
   const handleBarCodeScanned = async (data: string) => {
+    if (scanned) return;
     setScanned(true);
 
     try {
       const result = await verifySignature(data);
-
-      const decodedInfo = result.decodedData;
-      const displayText = `
-Signature Valid: ${result.isValid ? '✅ Yes' : '❌ No'}
-
-Personal Information:
-👤 Name: ${decodedInfo.name}
-🆔 Aadhaar: ${decodedInfo.aadhaar}
-⚧ Gender: ${decodedInfo.gender}
-📅 DOB: ${decodedInfo.dob.day}/${decodedInfo.dob.month}/${decodedInfo.dob.year}
-📊 Version: ${decodedInfo.version}
-      `;
-
-      Alert.alert(
-        result.isValid
-          ? 'Verification Successful ✅'
-          : 'Verification Failed ❌',
-        displayText,
-        [
-          {
-            text: 'Scan Again',
-            onPress: () => setScanned(false),
-          },
-          {
-            text: 'Go Back',
-            onPress: () => navigation.goBack(),
-          },
-        ],
-      );
+      navigation.navigate('VerificationResult', { result });
     } catch (error) {
       console.error('Error verifying signature:', error);
       Alert.alert(
@@ -93,6 +99,15 @@ Personal Information:
           },
         ],
       );
+    }
+  };
+
+  const handleFetchPEM = async () => {
+    try {
+      const data = await fetchAndStorePemFile();
+      Alert.alert('Success', 'PEM file successfully fetched and stored.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to fetch PEM file.');
     }
   };
 
@@ -119,204 +134,298 @@ Personal Information:
     );
   }
 
-  // if (!device) {
-  //   return (
-  //     <View style={styles.container}>
-  //       <Text style={styles.message}>No camera device available</Text>
-  //       <TouchableOpacity style={styles.button} onPress={goBack}>
-  //         <Text style={styles.buttonText}>Go Back</Text>
-  //       </TouchableOpacity>
-  //     </View>
-  //   );
-  // }
+  if (!pem) {
+    return (
+      <View style={styles.pemContainer}>
+        <View style={styles.pemCard}>
+          <Text style={styles.pemTitle}>Setup Required</Text>
+          <Text style={styles.pemMessage}>
+            No PEM file found. Please fetch the PEM file to start scanning.
+          </Text>
+          <TouchableOpacity style={styles.pemButton} onPress={handleFetchPEM}>
+            <Text style={styles.pemButtonText}>Fetch PEM File</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {Platform.OS === 'android' ? <StatusBar hidden /> : null}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent={true}
+      />
 
-      <View style={styles.content}>
+      {/* Main Content */}
+      <View style={styles.mainContent}>
+        <Text style={styles.subtitle}>Align QR code within the frame</Text>
+
         <View style={styles.scannerContainer}>
-          {device && (
+          {device && hasPermission && (
             <Camera
-              style={styles.smallCamera}
+              key="scanner-camera"
+              style={styles.camera}
               device={device}
-              isActive={!scanned}
+              isActive={!scanned && hasPermission}
               codeScanner={codeScanner}
             />
           )}
 
-          <View style={styles.scanFrame}>
-            <View style={styles.cornerTL} />
-            <View style={styles.cornerTR} />
-            <View style={styles.cornerBL} />
-            <View style={styles.cornerBR} />
+          <View style={styles.scanOverlay}>
+            <View style={styles.scanFrame} />
+            <View style={styles.corners}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
           </View>
         </View>
 
-        <Text style={styles.instructions}>
-          {scanned ? 'Processing QR code...' : 'Align QR code within the frame'}
+        <Text style={styles.statusText}>
+          {scanned ? 'Processing...' : 'Ready to scan'}
         </Text>
       </View>
 
-      {scanned && (
-        <TouchableOpacity
-          style={styles.scanAgainButton}
-          onPress={() => setScanned(false)}
-        >
-          <Text style={styles.scanAgainText}>Tap to Scan Again</Text>
+      {/* Bottom Actions */}
+      <View style={styles.bottomActions}>
+        <Text style={styles.subtitle}>{pemData}</Text>
+        <TouchableOpacity style={styles.refetchButton} onPress={handleFetchPEM}>
+          <Text style={styles.refetchButtonText}>⟲ Refresh Keys</Text>
         </TouchableOpacity>
-      )}
-    </SafeAreaView>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  // Main Container
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#0a0a0a',
   },
-  header: {
+
+  // PEM Setup Screen
+  pemContainer: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  pemCard: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 320,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  pemTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  pemMessage: {
+    fontSize: 16,
+    color: '#a0a0a3',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  pemButton: {
+    backgroundColor: '#007aff',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    minWidth: 160,
+  },
+  pemButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
+  // Header
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    paddingVertical: 16,
+    backgroundColor: 'transparent',
   },
   backButton: {
-    padding: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1c1c1e',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '500',
   },
-  title: {
+  headerTitle: {
     flex: 1,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
     textAlign: 'center',
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginRight: 50,
   },
-  content: {
+  headerSpacer: {
+    width: 40,
+  },
+
+  // Main Content
+  mainContent: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
-  description: {
+  subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#a0a0a3',
     textAlign: 'center',
     marginBottom: 40,
-    lineHeight: 24,
+    fontWeight: '400',
   },
+
+  // Scanner
   scannerContainer: {
     position: 'relative',
-    width: 250,
-    height: 250,
-    marginBottom: 30,
+    width: 280,
+    height: 280,
+    marginBottom: 32,
   },
-  smallCamera: {
-    width: 250,
-    height: 250,
-    borderRadius: 12,
+  camera: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
     overflow: 'hidden',
   },
-  scanFrame: {
+  scanOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 12,
+    borderRadius: 24,
   },
-  cornerTL: {
+  scanFrame: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 20,
-    height: 20,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-    borderColor: '#007AFF',
+    top: 20,
+    left: 20,
+    right: 20,
+    bottom: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#007aff',
+    borderStyle: 'dashed',
+    opacity: 0.6,
   },
-  cornerTR: {
+  corners: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-    borderColor: '#007AFF',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  cornerBL: {
+  corner: {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderColor: '#007AFF',
+    width: 24,
+    height: 24,
+    borderColor: '#007aff',
+    borderWidth: 3,
   },
-  cornerBR: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    borderColor: '#007AFF',
+  topLeft: {
+    top: 16,
+    left: 16,
+    borderBottomWidth: 0,
+    borderRightWidth: 0,
+    borderTopLeftRadius: 8,
   },
-  instructions: {
+  topRight: {
+    top: 16,
+    right: 16,
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+    borderTopRightRadius: 8,
+  },
+  bottomLeft: {
+    bottom: 16,
+    left: 16,
+    borderTopWidth: 0,
+    borderRightWidth: 0,
+    borderBottomLeftRadius: 8,
+  },
+  bottomRight: {
+    bottom: 16,
+    right: 16,
+    borderTopWidth: 0,
+    borderLeftWidth: 0,
+    borderBottomRightRadius: 8,
+  },
+
+  // Status Text
+  statusText: {
     fontSize: 16,
-    color: '#666',
+    color: '#a0a0a3',
     textAlign: 'center',
     fontWeight: '500',
   },
+
+  // Bottom Actions
+  bottomActions: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 16,
+  },
+  refetchButton: {
+    backgroundColor: '#1c1c1e',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    alignItems: 'center',
+  },
+  refetchButtonText: {
+    color: '#a0a0a3',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+
+  // Legacy styles for error states
   message: {
     textAlign: 'center',
     paddingBottom: 10,
     fontSize: 16,
-    color: '#333',
+    color: '#fff',
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007aff',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     margin: 20,
     alignItems: 'center',
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scanAgainButton: {
-    position: 'absolute',
-    bottom: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  scanAgainText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 });
-
-const ScannerScreens = () => {
-  return <></>;
-};
 
 export default ScannerScreen;

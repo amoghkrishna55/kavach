@@ -12,8 +12,31 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import HomeScreen from './src/screens/HomeScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
+import VerificationResultScreen from './src/screens/VerificationResultScreen';
 
-const Stack = createNativeStackNavigator();
+// Define the navigation types
+export type RootStackParamList = {
+  Home: undefined;
+  Scanner: undefined;
+  VerificationResult: {
+    result: {
+      isValid: boolean;
+      decodedData: {
+        name: string;
+        aadhaar: string;
+        gender: string;
+        dob: {
+          day: string;
+          month: string;
+          year: string;
+        };
+        version: string;
+      };
+    };
+  };
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
@@ -27,29 +50,12 @@ export default function App() {
         >
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="Scanner" component={ScannerScreen} />
+          <Stack.Screen
+            name="VerificationResult"
+            component={VerificationResultScreen}
+          />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
   );
 }
-
-// function App() {
-
-//   return (
-//     <SafeAreaProvider>
-//       <NavigationContainer>
-//         <Stack.Navigator
-//           initialRouteName="Home"
-//           screenOptions={{
-//             headerShown: false,
-//           }}
-//         >
-//           <Stack.Screen name="Home" component={HomeScreen} />
-//           <Stack.Screen name="Scanner" component={ScannerScreen} />
-//         </Stack.Navigator>
-//       </NavigationContainer>
-//     </SafeAreaProvider>
-//   );
-// }
-
-// export default App;
