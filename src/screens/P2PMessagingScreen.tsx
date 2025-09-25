@@ -157,7 +157,7 @@ export default function P2PMessagingScreen() {
 
         setMessages(prev => [...prev, verificationMessage]);
 
-        Alert.alert('Success', 'Verification result shared successfully');
+        // Alert.alert('Success', 'Verification result shared successfully');
       } else {
         Alert.alert('Error', 'Failed to share verification result');
       }

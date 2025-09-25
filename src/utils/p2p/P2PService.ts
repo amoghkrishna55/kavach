@@ -680,6 +680,16 @@ class P2PService {
     }
   }
 
+  // Get connection status for debugging
+  async getConnectionStatus(): Promise<any> {
+    try {
+      return await WifiP2pModule.getConnectionStatus();
+    } catch (error) {
+      console.error('Failed to get connection status:', error);
+      return null;
+    }
+  }
+
   // Handle peers changed event
   private handlePeersChanged(devices: any[]) {
     this.discoveredDevices = devices.map(device => ({
@@ -698,18 +708,19 @@ class P2PService {
 
     const { isConnected, device, isGroupOwner, groupOwnerAddress } = event;
 
-    if (isConnected && device) {
+    if (isConnected && device && device.deviceAddress) {
+      // Only process if we have a valid device with a proper device address
       const connectedDevice: P2PDevice = {
-        deviceName: device.deviceName || 'Connected Device',
-        deviceAddress: device.deviceAddress || groupOwnerAddress || 'unknown',
+        deviceName: device.deviceName || 'Unknown Device',
+        deviceAddress: device.deviceAddress, // Use only the actual device address, not IP
         status: 'CONNECTED',
         isGroupOwner,
       };
 
       console.log(
         `Device connected: ${connectedDevice.deviceName} (${
-          isGroupOwner ? 'Group Owner' : 'Client'
-        })`,
+          connectedDevice.deviceAddress
+        }) ${isGroupOwner ? 'as Group Owner' : 'as Client'}`,
       );
 
       // Clear connection timeout
@@ -722,7 +733,7 @@ class P2PService {
       }
       this.isConnecting = false;
 
-      // Update or add to connected devices
+      // Update or add to connected devices (avoid duplicates)
       const existingIndex = this.connectedDevices.findIndex(
         d => d.deviceAddress === connectedDevice.deviceAddress,
       );
@@ -757,6 +768,17 @@ class P2PService {
       setTimeout(() => {
         this.checkAndEstablishSocketConnection();
       }, 1000); // Wait 1 second for the connection to fully establish
+    } else if (isConnected) {
+      // Connection established but no valid device info - just log for debugging
+      console.log(
+        'Connection established but no valid device information provided',
+      );
+      console.log('Event details:', {
+        isConnected,
+        device,
+        isGroupOwner,
+        groupOwnerAddress,
+      });
     } else {
       console.log('Device disconnected or connection failed');
 

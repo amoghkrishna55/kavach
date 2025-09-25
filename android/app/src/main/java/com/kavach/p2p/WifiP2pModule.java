@@ -45,7 +45,8 @@ public class WifiP2pModule extends ReactContextBaseJavaModule {
     private IntentFilter intentFilter;
     
     private ServerSocket serverSocket;
-    private Socket clientSocket;
+    private Socket clientSocket; // For client connections to server
+    private Socket serverConnectionSocket; // For server-side accepted connections
     private boolean isGroupOwner = false;
     private String groupOwnerAddress;
     
@@ -187,11 +188,12 @@ public class WifiP2pModule extends ReactContextBaseJavaModule {
                 
                 if (isGroupOwner) {
                     // Group owner sends to connected client
-                    if (clientSocket != null && clientSocket.isConnected()) {
+                    if (serverConnectionSocket != null && serverConnectionSocket.isConnected()) {
                         sendMessageToClient(message);
                         promise.resolve(true);
                     } else {
-                        android.util.Log.e("WifiP2pModule", "No client connected to server");
+                        android.util.Log.e("WifiP2pModule", "No client connected to server. serverConnectionSocket: " + 
+                            (serverConnectionSocket != null ? "exists but not connected" : "null"));
                         promise.reject("NO_CLIENT", "No client connected. Wait for a device to connect.");
                     }
                 } else {
@@ -200,7 +202,8 @@ public class WifiP2pModule extends ReactContextBaseJavaModule {
                         sendMessageToServer(message);
                         promise.resolve(true);
                     } else {
-                        android.util.Log.e("WifiP2pModule", "Not connected to server");
+                        android.util.Log.e("WifiP2pModule", "Not connected to server. clientSocket: " + 
+                            (clientSocket != null ? "exists but not connected" : "null"));
                         promise.reject("NO_CONNECTION", "Not connected to group owner server");
                     }
                 }
@@ -292,6 +295,33 @@ public class WifiP2pModule extends ReactContextBaseJavaModule {
             });
         } else {
             promise.reject("NOT_INITIALIZED", "WiFi P2P not initialized");
+        }
+    }
+    
+    @ReactMethod
+    public void getConnectionStatus(Promise promise) {
+        try {
+            WritableMap result = Arguments.createMap();
+            result.putBoolean("isGroupOwner", isGroupOwner);
+            result.putString("groupOwnerAddress", groupOwnerAddress);
+            
+            if (isGroupOwner) {
+                boolean hasClient = serverConnectionSocket != null && serverConnectionSocket.isConnected();
+                result.putBoolean("hasConnectedClient", hasClient);
+                result.putBoolean("serverRunning", serverSocket != null && !serverSocket.isClosed());
+            } else {
+                boolean connectedToServer = clientSocket != null && clientSocket.isConnected();
+                result.putBoolean("connectedToServer", connectedToServer);
+            }
+            
+            android.util.Log.d("WifiP2pModule", "Connection status - isGroupOwner: " + isGroupOwner + 
+                ", clientSocket connected: " + (clientSocket != null && clientSocket.isConnected()) +
+                ", serverConnectionSocket connected: " + (serverConnectionSocket != null && serverConnectionSocket.isConnected()) +
+                ", serverSocket open: " + (serverSocket != null && !serverSocket.isClosed()));
+            
+            promise.resolve(result);
+        } catch (Exception e) {
+            promise.reject("CONNECTION_STATUS_ERROR", "Failed to get connection status", e);
         }
     }
 
@@ -401,12 +431,32 @@ public class WifiP2pModule extends ReactContextBaseJavaModule {
                 params.putString("groupOwnerAddress", groupOwnerAddress);
             }
             
-            // Add device info if available
+            // Add actual connected device info from peers list
             if (info.groupFormed) {
-                WritableMap deviceInfo = Arguments.createMap();
-                deviceInfo.putString("deviceName", "Connected Device");
-                deviceInfo.putString("deviceAddress", groupOwnerAddress != null ? groupOwnerAddress : "unknown");
-                params.putMap("device", deviceInfo);
+                // Find the connected device from the peers list
+                WritableMap deviceInfo = null;
+                for (WifiP2pDevice peer : peers) {
+                    if (peer.status == WifiP2pDevice.CONNECTED) {
+                        deviceInfo = Arguments.createMap();
+                        deviceInfo.putString("deviceName", peer.deviceName);
+                        deviceInfo.putString("deviceAddress", peer.deviceAddress);
+                        deviceInfo.putString("status", getDeviceStatus(peer.status));
+                        break;
+                    }
+                }
+                
+                // If we found a connected device, add it to params
+                if (deviceInfo != null) {
+                    params.putMap("device", deviceInfo);
+                    // Find the connected peer again for logging (can't read from WritableMap)
+                    for (WifiP2pDevice peer : peers) {
+                        if (peer.status == WifiP2pDevice.CONNECTED) {
+                            android.util.Log.d("WifiP2pModule", "Connected to device: " + peer.deviceName + 
+                                " (" + peer.deviceAddress + ")");
+                            break;
+                        }
+                    }
+                }
                 
                 if (isGroupOwner) {
                     android.util.Log.d("WifiP2pModule", "Starting server as group owner");
@@ -443,8 +493,8 @@ public class WifiP2pModule extends ReactContextBaseJavaModule {
                         Socket client = serverSocket.accept();
                         android.util.Log.d("WifiP2pModule", "Client connected: " + client.getRemoteSocketAddress());
                         
-                        // Store the client socket for sending messages
-                        clientSocket = client;
+                        // Store the client socket for sending messages (use separate variable for server connections)
+                        serverConnectionSocket = client;
                         
                         // Handle incoming messages from this client
                         handleClientMessages(client);
@@ -549,10 +599,10 @@ public class WifiP2pModule extends ReactContextBaseJavaModule {
     }
 
     private void sendMessageToClient(String message) throws IOException {
-        // Send to connected client (clientSocket contains the connected client when we're the server)
-        if (clientSocket != null && clientSocket.isConnected()) {
+        // Send to connected client (serverConnectionSocket contains the accepted client connection)
+        if (serverConnectionSocket != null && serverConnectionSocket.isConnected()) {
             android.util.Log.d("WifiP2pModule", "Sending message to client: " + message);
-            OutputStream outputStream = clientSocket.getOutputStream();
+            OutputStream outputStream = serverConnectionSocket.getOutputStream();
             outputStream.write(message.getBytes());
             outputStream.flush();
             android.util.Log.d("WifiP2pModule", "Message sent to client successfully");
@@ -567,12 +617,16 @@ public class WifiP2pModule extends ReactContextBaseJavaModule {
                 clientSocket.close();
                 clientSocket = null;
             }
+            if (serverConnectionSocket != null) {
+                serverConnectionSocket.close();
+                serverConnectionSocket = null;
+            }
             if (serverSocket != null) {
                 serverSocket.close();
                 serverSocket = null;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            android.util.Log.e("WifiP2pModule", "Error closing connections: " + e.getMessage());
         }
     }
 
