@@ -83,6 +83,18 @@ MC4CAQAwBQYDK2VwBCIEIEmLPOpujqNBu0l2FTpShxFGMww3uZC/qZniqgnWqCUt
     navigation.navigate('Scanner' as never);
   };
 
+  const navigateToDeviceDiscovery = () => {
+    navigation.navigate('DeviceDiscovery' as never);
+  };
+
+  const navigateToP2PMessaging = () => {
+    navigation.navigate('P2PMessaging' as never);
+  };
+
+  const navigateToP2PTest = () => {
+    navigation.navigate('P2PTest' as never);
+  };
+
   const renderDataTab = () => (
     <ScrollView style={styles.tabContent}>
       <Text style={styles.title}>Kavach</Text>
@@ -115,6 +127,51 @@ MC4CAQAwBQYDK2VwBCIEIEmLPOpujqNBu0l2FTpShxFGMww3uZC/qZniqgnWqCUt
             ? `Uint8Array(${signatureWithData.length} bytes)`
             : 'Loading...'}
         </Text>
+      </View>
+
+      {/* P2P Features Section */}
+      <View style={styles.p2pSection}>
+        <Text style={styles.sectionTitle}>P2P Features</Text>
+        <Text style={styles.sectionSubtitle}>
+          Connect and communicate directly with other Kavach devices without
+          internet
+        </Text>
+
+        <TouchableOpacity
+          style={styles.p2pButton}
+          onPress={navigateToDeviceDiscovery}
+        >
+          <Text style={styles.p2pButtonIcon}>🔍</Text>
+          <View style={styles.p2pButtonContent}>
+            <Text style={styles.p2pButtonTitle}>Device Discovery</Text>
+            <Text style={styles.p2pButtonDescription}>
+              Find nearby Kavach devices
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.p2pButton}
+          onPress={navigateToP2PMessaging}
+        >
+          <Text style={styles.p2pButtonIcon}>💬</Text>
+          <View style={styles.p2pButtonContent}>
+            <Text style={styles.p2pButtonTitle}>P2P Messaging</Text>
+            <Text style={styles.p2pButtonDescription}>
+              Send messages and verification data
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.p2pButton} onPress={navigateToP2PTest}>
+          <Text style={styles.p2pButtonIcon}>🔧</Text>
+          <View style={styles.p2pButtonContent}>
+            <Text style={styles.p2pButtonTitle}>P2P Test</Text>
+            <Text style={styles.p2pButtonDescription}>
+              Test native module availability
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -358,6 +415,50 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderRightWidth: 3,
     borderColor: '#007AFF',
+  },
+  // P2P Section Styles
+  p2pSection: {
+    marginTop: 30,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1d1d1f',
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#86868b',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  p2pButton: {
+    backgroundColor: '#f5f5f7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e8e8ed',
+  },
+  p2pButtonIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  p2pButtonContent: {
+    flex: 1,
+  },
+  p2pButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1d1d1f',
+    marginBottom: 2,
+  },
+  p2pButtonDescription: {
+    fontSize: 12,
+    color: '#86868b',
   },
 });
 

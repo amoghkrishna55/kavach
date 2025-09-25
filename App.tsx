@@ -13,27 +13,20 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from './src/screens/HomeScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
 import VerificationResultScreen from './src/screens/VerificationResultScreen';
+import DeviceDiscoveryScreen from './src/screens/DeviceDiscoveryScreen';
+import P2PMessagingScreen from './src/screens/P2PMessagingScreen';
+import P2PTestScreen from './src/screens/P2PTestScreen';
 
 // Define the navigation types
 export type RootStackParamList = {
   Home: undefined;
   Scanner: undefined;
   VerificationResult: {
-    result: {
-      isValid: boolean;
-      decodedData: {
-        name: string;
-        aadhaar: string;
-        gender: string;
-        dob: {
-          day: string;
-          month: string;
-          year: string;
-        };
-        version: string;
-      };
-    };
+    verificationResult: any;
   };
+  DeviceDiscovery: undefined;
+  P2PMessaging: undefined;
+  P2PTest: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -54,6 +47,12 @@ export default function App() {
             name="VerificationResult"
             component={VerificationResultScreen}
           />
+          <Stack.Screen
+            name="DeviceDiscovery"
+            component={DeviceDiscoveryScreen}
+          />
+          <Stack.Screen name="P2PMessaging" component={P2PMessagingScreen} />
+          <Stack.Screen name="P2PTest" component={P2PTestScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
