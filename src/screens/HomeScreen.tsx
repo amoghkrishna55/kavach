@@ -30,11 +30,9 @@ const HomeScreen = () => {
         const data = await getStoredPemFile();
         if (data) {
           setPemFileStatus('PEM file found in storage.');
-          setStoredPemContent(data.substring(0, 100) + '...');
         } else {
           const fetchedData = await fetchAndStorePemFile();
           setPemFileStatus('PEM file fetched and stored.');
-          setStoredPemContent(fetchedData.substring(0, 100) + '...');
         }
       } catch (e) {
         setPemFileStatus('Error retrieving PEM file.');
