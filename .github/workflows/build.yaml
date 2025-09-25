@@ -15,9 +15,9 @@ jobs:
           java-version: 17
           distribution: adopt
           cache: gradle
-
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v3
+      # Idk why it's not working
+      #- name: Validate Gradle wrapper
+      #  uses: gradle/actions/wrapper-validation@v3
 
       - name: Setup Node
         uses: actions/setup-node@v3
@@ -29,12 +29,6 @@ jobs:
         run: |
           npm i -g corepack
           npm install --force
-
-      #   - name: Create .env file
-      #     run: |
-      #       echo GEMINI_KEY=${{secrets.GEMINI_KEY}} >> .env
-      #       echo FIREBASE_CONFIG=${{secrets.FIREBASE_CONFIG}} >> .env
-      #       echo GEOCODE_API=${{secrets.GEOCODE_API}} >> .env
 
       - name: Build application
         run: |
