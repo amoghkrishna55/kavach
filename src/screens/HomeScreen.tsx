@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Encoder, Signer } from '@ba3a-g/kavach';
-import type { DecodedGender, DecodedVersion } from '@ba3a-g/kavach';
+import { Encoder, Signer } from '../utils/crypto';
+import type { DecodedGender, DecodedVersion } from '../utils/crypto';
 import { Buffer } from 'buffer';
 import { fetchAndStorePemFile, getStoredPemFile } from '../utils/keys';
 import ScannerScreen from './ScannerScreen';
