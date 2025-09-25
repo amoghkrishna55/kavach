@@ -22,7 +22,6 @@ const HomeScreen = () => {
     null,
   );
   const [pemFileStatus, setPemFileStatus] = useState<string>('Checking...');
-  const [storedPemContent, setStoredPemContent] = useState<string>('');
 
   useEffect(() => {
     const initializePemFile = async () => {

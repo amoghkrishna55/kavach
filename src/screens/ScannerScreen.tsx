@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,11 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { CameraView } from 'expo-camera';
+import {
+  Camera,
+  useCameraDevice,
+  useCodeScanner,
+} from 'react-native-vision-camera';
 import { useNavigation } from '@react-navigation/native';
 import { verifySignature } from '../utils/keys';
 
@@ -18,24 +22,27 @@ const ScannerScreen = () => {
   const navigation = useNavigation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
+  const device = useCameraDevice('back');
 
   useEffect(() => {
     const getCameraPermissions = async () => {
-      const { Camera } = await import('expo-camera');
-      const { status } = await Camera.requestCameraPermissionsAsync();
+      const status = await Camera.requestCameraPermission();
       setHasPermission(status === 'granted');
     };
 
     getCameraPermissions();
   }, []);
 
-  const handleBarCodeScanned = async ({
-    type,
-    data,
-  }: {
-    type: string;
-    data: string;
-  }) => {
+  const codeScanner = useCodeScanner({
+    codeTypes: ['qr'],
+    onCodeScanned: codes => {
+      if (scanned || codes.length === 0) return;
+
+      handleBarCodeScanned(codes[0].value || '');
+    },
+  });
+
+  const handleBarCodeScanned = async (data: string) => {
     setScanned(true);
 
     try {
@@ -111,20 +118,31 @@ Personal Information:
     );
   }
 
+  if (!device) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>No camera device available</Text>
+        <TouchableOpacity style={styles.button} onPress={goBack}>
+          <Text style={styles.buttonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {Platform.OS === 'android' ? <StatusBar hidden /> : null}
 
       <View style={styles.content}>
         <View style={styles.scannerContainer}>
-          <CameraView
-            style={styles.smallCamera}
-            facing="back"
-            barcodeScannerSettings={{
-              barcodeTypes: ['qr'],
-            }}
-            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-          />
+          {device && (
+            <Camera
+              style={styles.smallCamera}
+              device={device}
+              isActive={!scanned}
+              codeScanner={codeScanner}
+            />
+          )}
 
           <View style={styles.scanFrame}>
             <View style={styles.cornerTL} />
