@@ -49,7 +49,7 @@ class P2PService {
     device: P2PDevice,
     connected: boolean,
   ) => void)[] = [];
-  
+
   private connectionTimeouts: Map<string, NodeJS.Timeout> = new Map();
   private isConnecting = false;
 
@@ -112,28 +112,39 @@ class P2PService {
       }
 
       console.log('Requesting permissions:', permissions);
-      
+
       // Request permissions one by one for better debugging
       const results: Record<string, any> = {};
       for (const permission of permissions) {
         try {
           console.log(`Requesting permission: ${permission}`);
           results[permission] = await request(permission);
-          console.log(`Permission ${permission} result: ${results[permission]}`);
-          
+          console.log(
+            `Permission ${permission} result: ${results[permission]}`,
+          );
+
           if (results[permission] === RESULTS.DENIED) {
             console.error(`Critical permission denied: ${permission}`);
-            console.error('Please go to Settings > Apps > Kavach > Permissions and enable Location permissions');
+            console.error(
+              'Please go to Settings > Apps > Kavach > Permissions and enable Location permissions',
+            );
             return false;
           }
-          
+
           if (results[permission] === RESULTS.BLOCKED) {
-            console.error(`Permission blocked (never ask again): ${permission}`);
-            console.error('Please go to Settings > Apps > Kavach > Permissions and manually enable Location permissions');
+            console.error(
+              `Permission blocked (never ask again): ${permission}`,
+            );
+            console.error(
+              'Please go to Settings > Apps > Kavach > Permissions and manually enable Location permissions',
+            );
             return false;
           }
         } catch (permError) {
-          console.error(`Error requesting permission ${permission}:`, permError);
+          console.error(
+            `Error requesting permission ${permission}:`,
+            permError,
+          );
           return false;
         }
       }
@@ -145,11 +156,17 @@ class P2PService {
       );
 
       if (!allGranted) {
-        console.error('Not all permissions granted. WiFi Direct requires precise location access.');
+        console.error(
+          'Not all permissions granted. WiFi Direct requires precise location access.',
+        );
         console.error('Please ensure:');
         console.error('1. Location services are enabled system-wide');
-        console.error('2. App has "Precise location" permission (not just "Approximate")');
-        console.error('3. Location permission is set to "Allow all the time" or "Allow only while using app"');
+        console.error(
+          '2. App has "Precise location" permission (not just "Approximate")',
+        );
+        console.error(
+          '3. Location permission is set to "Allow all the time" or "Allow only while using app"',
+        );
       }
 
       console.log('All permissions granted:', allGranted);
@@ -283,7 +300,7 @@ class P2PService {
   async retryConnection(device: P2PDevice): Promise<boolean> {
     try {
       console.log('Retrying connection to device:', device.deviceAddress);
-      
+
       // First disconnect any existing connections
       if (WifiP2pModule.disconnect) {
         try {
@@ -294,10 +311,10 @@ class P2PService {
           console.log('No previous connection to disconnect');
         }
       }
-      
+
       // Reset connection state
       this.isConnecting = false;
-      
+
       // Try connecting again
       return await this.connectToDevice(device);
     } catch (error) {
@@ -310,16 +327,16 @@ class P2PService {
   async runDiagnostics(): Promise<any> {
     try {
       console.log('Running P2P diagnostics...');
-      
+
       // Check React Native permissions
       const rnPermissions = await this.checkPermissions();
       console.log('RN Permissions granted:', rnPermissions);
-      
+
       // Check native permissions and system state
       if (WifiP2pModule && WifiP2pModule.checkPermissions) {
         const nativeCheck = await WifiP2pModule.checkPermissions();
         console.log('Native permission check:', nativeCheck);
-        
+
         // Also check connection info
         let connectionInfo = null;
         if (WifiP2pModule.requestConnectionInfo) {
@@ -330,7 +347,7 @@ class P2PService {
             console.error('Failed to get connection info:', connError);
           }
         }
-        
+
         const diagnostics = {
           rnPermissions,
           nativePermissions: nativeCheck,
@@ -340,7 +357,7 @@ class P2PService {
           connectedDevices: this.connectedDevices.length,
           discoveredDevices: this.discoveredDevices.length,
         };
-        
+
         console.log('Full diagnostics:', diagnostics);
         return diagnostics;
       } else {
@@ -350,7 +367,7 @@ class P2PService {
           nativePermissions: null,
           isInitialized: this.isInitialized,
           moduleAvailable: !!WifiP2pModule,
-          error: 'Native module not properly linked'
+          error: 'Native module not properly linked',
         };
       }
     } catch (error) {
@@ -375,11 +392,19 @@ class P2PService {
       const hasPermissions = await this.checkPermissions();
       if (!hasPermissions) {
         console.error('Missing required permissions for connection');
-        console.error('Please go to Settings > Apps > Kavach > Permissions and ensure:');
-        console.error('1. Location is set to "Allow all the time" or "Allow only while using app"');
-        console.error('2. Location accuracy is set to "Precise" (not Approximate)');
+        console.error(
+          'Please go to Settings > Apps > Kavach > Permissions and ensure:',
+        );
+        console.error(
+          '1. Location is set to "Allow all the time" or "Allow only while using app"',
+        );
+        console.error(
+          '2. Location accuracy is set to "Precise" (not Approximate)',
+        );
         console.error('3. Nearby devices permission is granted (Android 13+)');
-        throw new Error('Missing required permissions. Please enable precise location access in app settings.');
+        throw new Error(
+          'Missing required permissions. Please enable precise location access in app settings.',
+        );
       }
 
       if (this.isConnecting) {
@@ -400,14 +425,16 @@ class P2PService {
       // Set connection timeout with retry logic
       const timeoutId = setTimeout(async () => {
         console.log('Connection timeout for device:', device.deviceAddress);
-        
+
         // Check if connection actually succeeded despite timeout
         console.log('Checking connection status after timeout...');
         try {
           if (WifiP2pModule.requestConnectionInfo) {
             const connectionInfo = await WifiP2pModule.requestConnectionInfo();
             if (connectionInfo && connectionInfo.groupFormed) {
-              console.log('Connection actually succeeded, establishing socket connection...');
+              console.log(
+                'Connection actually succeeded, establishing socket connection...',
+              );
               await this.checkAndEstablishSocketConnection();
               return; // Don't treat as failure
             }
@@ -415,10 +442,10 @@ class P2PService {
         } catch (error) {
           console.error('Error checking connection after timeout:', error);
         }
-        
+
         this.isConnecting = false;
         this.connectionTimeouts.delete(device.deviceAddress);
-        
+
         // Notify listeners of connection failure
         this.connectionListeners.forEach(listener => {
           try {
@@ -432,19 +459,25 @@ class P2PService {
       this.connectionTimeouts.set(device.deviceAddress, timeoutId);
 
       const result = await WifiP2pModule.connect(device.deviceAddress);
-      
+
       if (result) {
         // Wait a bit for the connection to establish, then check connection info
-        console.log('WiFi Direct connection initiated, monitoring connection status...');
-        
+        console.log(
+          'WiFi Direct connection initiated, monitoring connection status...',
+        );
+
         // Check connection status multiple times
         const checkConnection = async (attempt: number) => {
           try {
             console.log(`Connection check attempt ${attempt}...`);
             if (WifiP2pModule.requestConnectionInfo) {
-              const connectionInfo = await WifiP2pModule.requestConnectionInfo();
-              console.log(`Connection info (attempt ${attempt}):`, connectionInfo);
-              
+              const connectionInfo =
+                await WifiP2pModule.requestConnectionInfo();
+              console.log(
+                `Connection info (attempt ${attempt}):`,
+                connectionInfo,
+              );
+
               if (connectionInfo && connectionInfo.groupFormed) {
                 console.log('WiFi Direct connection established successfully!');
                 await this.checkAndEstablishSocketConnection();
@@ -463,7 +496,7 @@ class P2PService {
         setTimeout(() => checkConnection(3), 10000);
         setTimeout(() => checkConnection(4), 15000);
       }
-      
+
       if (!result) {
         this.isConnecting = false;
         const timeout = this.connectionTimeouts.get(device.deviceAddress);
@@ -472,20 +505,20 @@ class P2PService {
           this.connectionTimeouts.delete(device.deviceAddress);
         }
       }
-      
+
       console.log('Connection initiated:', result);
       return result;
     } catch (error) {
       this.isConnecting = false;
       console.error('Failed to connect to device:', error);
-      
+
       // Clear timeout on error
       const timeout = this.connectionTimeouts.get(device.deviceAddress);
       if (timeout) {
         clearTimeout(timeout);
         this.connectionTimeouts.delete(device.deviceAddress);
       }
-      
+
       return false;
     }
   }
@@ -493,41 +526,57 @@ class P2PService {
   // Check connection status and establish socket connection if needed
   private async checkAndEstablishSocketConnection(): Promise<void> {
     try {
-      console.log('Checking connection status and establishing socket connection...');
-      
+      console.log(
+        'Checking connection status and establishing socket connection...',
+      );
+
       if (WifiP2pModule.requestConnectionInfo) {
         const connectionInfo = await WifiP2pModule.requestConnectionInfo();
         console.log('Connection info:', connectionInfo);
-        
+
         if (connectionInfo.groupFormed) {
           console.log('Group formed successfully');
-          
-          if (!connectionInfo.isGroupOwner && connectionInfo.groupOwnerAddress) {
+
+          if (
+            !connectionInfo.isGroupOwner &&
+            connectionInfo.groupOwnerAddress
+          ) {
             // We're the client, force connect to server
-            console.log('Forcing client connection to server:', connectionInfo.groupOwnerAddress);
-            
+            console.log(
+              'Forcing client connection to server:',
+              connectionInfo.groupOwnerAddress,
+            );
+
             const maxRetries = 3;
             let retryCount = 0;
-            
+
             const attemptConnection = async (): Promise<void> => {
               try {
-                await WifiP2pModule.forceClientConnection(connectionInfo.groupOwnerAddress);
+                await WifiP2pModule.forceClientConnection(
+                  connectionInfo.groupOwnerAddress,
+                );
                 console.log('Socket connection established successfully');
               } catch (socketError) {
                 retryCount++;
-                console.error(`Socket connection attempt ${retryCount} failed:`, socketError);
-                
+                console.error(
+                  `Socket connection attempt ${retryCount} failed:`,
+                  socketError,
+                );
+
                 if (retryCount < maxRetries) {
-                  console.log(`Retrying socket connection in 2 seconds (attempt ${retryCount + 1}/${maxRetries})...`);
+                  console.log(
+                    `Retrying socket connection in 2 seconds (attempt ${
+                      retryCount + 1
+                    }/${maxRetries})...`,
+                  );
                   setTimeout(attemptConnection, 2000);
                 } else {
                   console.error('All socket connection attempts failed');
                 }
               }
             };
-            
+
             await attemptConnection();
-            
           } else if (connectionInfo.isGroupOwner) {
             console.log('We are the group owner, server should be running');
             console.log('Waiting for client to connect to our server...');
@@ -546,23 +595,25 @@ class P2PService {
   async disconnectFromDevice(device: P2PDevice): Promise<boolean> {
     try {
       console.log(`Attempting to disconnect from device: ${device.deviceName}`);
-      
+
       const success = await WifiP2pModule.disconnect();
-      
+
       if (success) {
-        console.log(`Disconnect initiated successfully from: ${device.deviceName}`);
-        
+        console.log(
+          `Disconnect initiated successfully from: ${device.deviceName}`,
+        );
+
         // Remove from connected devices immediately (will be confirmed by event)
         this.connectedDevices = this.connectedDevices.filter(
-          d => d.deviceAddress !== device.deviceAddress
+          d => d.deviceAddress !== device.deviceAddress,
         );
-        
+
         // Restart discovery after disconnect
         setTimeout(() => this.startDiscovery(), 1000);
       } else {
         console.log(`Disconnect failed from: ${device.deviceName}`);
       }
-      
+
       return success;
     } catch (error) {
       console.error('Failed to disconnect from device:', error);
@@ -644,7 +695,7 @@ class P2PService {
   // Handle connection changed event
   private handleConnectionChanged(event: any) {
     console.log('Connection changed event:', event);
-    
+
     const { isConnected, device, isGroupOwner, groupOwnerAddress } = event;
 
     if (isConnected && device) {
@@ -655,10 +706,16 @@ class P2PService {
         isGroupOwner,
       };
 
-      console.log(`Device connected: ${connectedDevice.deviceName} (${isGroupOwner ? 'Group Owner' : 'Client'})`);
+      console.log(
+        `Device connected: ${connectedDevice.deviceName} (${
+          isGroupOwner ? 'Group Owner' : 'Client'
+        })`,
+      );
 
       // Clear connection timeout
-      const timeoutId = this.connectionTimeouts.get(connectedDevice.deviceAddress);
+      const timeoutId = this.connectionTimeouts.get(
+        connectedDevice.deviceAddress,
+      );
       if (timeoutId) {
         clearTimeout(timeoutId);
         this.connectionTimeouts.delete(connectedDevice.deviceAddress);
@@ -669,7 +726,7 @@ class P2PService {
       const existingIndex = this.connectedDevices.findIndex(
         d => d.deviceAddress === connectedDevice.deviceAddress,
       );
-      
+
       if (existingIndex >= 0) {
         this.connectedDevices[existingIndex] = connectedDevice;
       } else {
@@ -680,26 +737,29 @@ class P2PService {
       this.discoveredDevices = this.discoveredDevices.map(d =>
         d.deviceAddress === connectedDevice.deviceAddress
           ? { ...d, status: 'CONNECTED' }
-          : d
+          : d,
       );
 
       // Notify listeners
       this.connectionListeners.forEach(listener =>
         listener(connectedDevice, true),
       );
-      
+
       // Update device list listeners
-      this.deviceListeners.forEach(listener => listener(this.discoveredDevices));
-      
+      this.deviceListeners.forEach(listener =>
+        listener(this.discoveredDevices),
+      );
+
       // Automatically establish socket connection
-      console.log('WiFi Direct connection established, setting up socket connection...');
+      console.log(
+        'WiFi Direct connection established, setting up socket connection...',
+      );
       setTimeout(() => {
         this.checkAndEstablishSocketConnection();
       }, 1000); // Wait 1 second for the connection to fully establish
-      
     } else {
       console.log('Device disconnected or connection failed');
-      
+
       // Handle disconnection
       if (device && device.deviceAddress) {
         const disconnectedDevice: P2PDevice = {
@@ -716,21 +776,23 @@ class P2PService {
         this.discoveredDevices = this.discoveredDevices.map(d =>
           d.deviceAddress === disconnectedDevice.deviceAddress
             ? { ...d, status: 'AVAILABLE' }
-            : d
+            : d,
         );
 
         // Notify listeners
         this.connectionListeners.forEach(listener =>
           listener(disconnectedDevice, false),
         );
-        
+
         // Update device list listeners
-        this.deviceListeners.forEach(listener => listener(this.discoveredDevices));
+        this.deviceListeners.forEach(listener =>
+          listener(this.discoveredDevices),
+        );
       } else {
         // General disconnection - clear all connections
         console.log('Clearing all connections due to general disconnection');
         const wasConnected = this.connectedDevices.length > 0;
-        
+
         if (wasConnected) {
           // Notify about all disconnections
           this.connectedDevices.forEach(device => {
@@ -739,17 +801,19 @@ class P2PService {
             );
           });
         }
-        
+
         this.connectedDevices = [];
-        
+
         // Reset all device statuses
         this.discoveredDevices = this.discoveredDevices.map(d => ({
           ...d,
-          status: 'AVAILABLE'
+          status: 'AVAILABLE',
         }));
-        
+
         // Update device list listeners
-        this.deviceListeners.forEach(listener => listener(this.discoveredDevices));
+        this.deviceListeners.forEach(listener =>
+          listener(this.discoveredDevices),
+        );
       }
     }
   }
