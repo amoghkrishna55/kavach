@@ -31,6 +31,8 @@ const ShowAadhaarDataScreen = () => {
   const [senderDevice, setSenderDevice] = useState<string>('');
   const [connectionStatus, setConnectionStatus] =
     useState<string>('Not Connected');
+  const [isP2PInitialized, setIsP2PInitialized] = useState(false);
+  const [isInitializingP2P, setIsInitializingP2P] = useState(false);
 
   // Aadhaar data state
   const [aadharData, setAadharData] = useState<AadharUser | null>(null);
@@ -44,28 +46,62 @@ const ShowAadhaarDataScreen = () => {
 
     // Listen for incoming messages
     const handleMessage = (message: P2PMessage) => {
-      console.log('Received message in Aadhaar screen:', message);
+      console.log('ShowAadhaar - Received message:', {
+        type: message.type,
+        fromDevice: message.fromDevice,
+        messageLength: message.message.length,
+        messagePreview: message.message.substring(0, 100),
+      });
 
       if (message.type === 'consent') {
         try {
           const consentData = JSON.parse(message.message);
+          console.log('ShowAadhaar - Parsed consent data:', consentData);
           setReceivedConsent(consentData.consentText || message.message);
           setSenderDevice(message.fromDevice);
           setConnectionStatus('Consent Received');
+          
+          // Show alert to user
+          Alert.alert(
+            'Consent Received',
+            `Received consent request from ${message.fromDevice}. Please review and process it.`,
+          );
         } catch (error) {
+          console.log('ShowAadhaar - Treating as plain text consent');
           // If not JSON, treat as plain text
           setReceivedConsent(message.message);
           setSenderDevice(message.fromDevice);
           setConnectionStatus('Consent Received');
+          
+          Alert.alert(
+            'Consent Received',
+            `Received consent request from ${message.fromDevice}. Please review and process it.`,
+          );
         }
+      } else if (message.type === 'chat') {
+        // Also handle chat messages as potential consent (fallback)
+        console.log('ShowAadhaar - Received chat message, treating as potential consent');
+        setReceivedConsent(message.message);
+        setSenderDevice(message.fromDevice);
+        setConnectionStatus('Message Received');
+        
+        Alert.alert(
+          'Message Received',
+          `Received message from ${message.fromDevice}: ${message.message.substring(0, 50)}...`,
+        );
+      } else {
+        console.log('ShowAadhaar - Ignoring message with type:', message.type);
       }
     };
 
     const handleConnection = (device: P2PDevice, connected: boolean) => {
+      console.log('ShowAadhaar - Connection change:', { device: device.deviceName, connected });
       if (connected) {
         setConnectionStatus(`Connected to ${device.deviceName}`);
+        Alert.alert('Connected', `${device.deviceName} connected`);
       } else {
         setConnectionStatus('Disconnected');
+        Alert.alert('Disconnected', `${device.deviceName} disconnected`);
       }
     };
 
@@ -78,21 +114,68 @@ const ShowAadhaarDataScreen = () => {
     };
   }, []);
 
+  const initializeP2P = async () => {
+    try {
+      if (isInitializingP2P) {
+        return false;
+      }
+
+      setIsInitializingP2P(true);
+      setConnectionStatus('Initializing P2P...');
+
+      // Check if already initialized
+      if (!P2PService.isServiceInitialized()) {
+        const initialized = await P2PService.initialize();
+        if (!initialized) {
+          Alert.alert(
+            'Error',
+            'Failed to initialize P2P service. Please check permissions and make sure you are on Android.',
+          );
+          setConnectionStatus('P2P Initialization Failed');
+          return false;
+        }
+      }
+
+      setIsP2PInitialized(true);
+      setConnectionStatus('P2P Initialized');
+      return true;
+    } catch (error) {
+      console.error('Failed to initialize P2P:', error);
+      Alert.alert(
+        'Error',
+        `Failed to initialize P2P service: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      setConnectionStatus('P2P Initialization Failed');
+      return false;
+    } finally {
+      setIsInitializingP2P(false);
+    }
+  };
+
   const handleSignConsent = async () => {
     try {
-      setConnectionStatus('Starting P2P...');
-
-      // Initialize P2P Service
-      const initialized = await P2PService.initialize();
-      if (!initialized) {
-        Alert.alert('Error', 'Failed to initialize P2P service');
-        return;
+      // Initialize P2P if not already done
+      if (!isP2PInitialized) {
+        const initialized = await initializeP2P();
+        if (!initialized) {
+          return;
+        }
       }
+
+      setConnectionStatus('Starting discovery...');
 
       // Start discovery to make this device discoverable
       await P2PService.startDiscovery();
       setIsP2PActive(true);
+      
+      // Wait a moment for discovery to stabilize
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       setConnectionStatus('Ready to receive consent (Discoverable)');
+
+      console.log('ShowAadhaar - Device is now discoverable and ready to receive consent');
 
       Alert.alert(
         'Ready',
@@ -231,25 +314,55 @@ const ShowAadhaarDataScreen = () => {
     }
 
     try {
+      // Check P2P service state
+      if (!isP2PInitialized) {
+        Alert.alert('Error', 'P2P service not initialized');
+        return;
+      }
+
       // Simulate processing consent and generating certificate
       setConnectionStatus('Processing consent...');
       const private_key = aadharData.userPrivateKey;
-      Alert.alert('Private Key', private_key);
+      console.log('Processing consent with private key:', private_key.substring(0, 10) + '...');
 
-      // const signer = new Signer(private_key);
-      // const certificateResponse = signer.sign(receivedConsent);
+      const signer = new Signer(private_key);
+      const certificateResponse = signer.sign(receivedConsent);
 
-      // Send certificate back to KYC dashboard
-      const success = await P2PService.sendMessage(
-        // JSON.stringify(certificateResponse),
-        'hello',
-        undefined, // Send to connected device
-        'verification',
-      );
+      // Retry logic for sending certificate
+      let success = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (!success && attempts < maxAttempts) {
+        attempts++;
+        console.log(`Sending certificate attempt ${attempts}/${maxAttempts}`);
+        setConnectionStatus(`Sending certificate (${attempts}/${maxAttempts})...`);
+
+        try {
+          success = await P2PService.sendMessage(
+            JSON.stringify(certificateResponse),
+            undefined, // Send to connected device
+            'verification',
+          );
+
+          if (!success && attempts < maxAttempts) {
+            console.log(`Send failed, waiting before retry ${attempts + 1}...`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          }
+        } catch (sendError) {
+          console.error(`Send attempt ${attempts} failed:`, sendError);
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
 
       if (success) {
         setConnectionStatus('Certificate sent successfully');
-        Alert.alert('Certificate Sent');
+        Alert.alert(
+          'Certificate Sent',
+          `Certificate successfully sent to ${senderDevice}`
+        );
 
         // Reset the received consent after processing
         setReceivedConsent('');
@@ -258,33 +371,53 @@ const ShowAadhaarDataScreen = () => {
         setConnectionStatus('Failed to send certificate');
         Alert.alert(
           'Error',
-          'Failed to send certificate back to KYC dashboard',
+          `Failed to send certificate after ${maxAttempts} attempts. Please check connection and try again.`
         );
       }
     } catch (error) {
       console.error('Failed to process consent:', error);
-      setConnectionStatus('Error processing consent');
-      // Alert.alert(
-      //   'Error',
-      //   'Failed to process consent and generate certificate',
-      // );
+      setConnectionStatus('Failed to process consent');
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert('Error', `Failed to process consent: ${errorMessage}`);
     }
   };
 
   const handleDisconnect = async () => {
     try {
-      // Stop P2P discovery and cleanup
-      await P2PService.stopDiscovery();
-      P2PService.cleanup();
+      Alert.alert(
+        'Disconnect',
+        'This will stop P2P service and disconnect from all devices. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disconnect',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Stop P2P discovery and cleanup
+                await P2PService.stopDiscovery();
+                await P2PService.disconnect();
 
-      setIsP2PActive(false);
-      setReceivedConsent('');
-      setSenderDevice('');
-      setConnectionStatus('Disconnected');
-      Alert.alert('Disconnected', 'All P2P connections have been reset');
+                setIsP2PActive(false);
+                setIsP2PInitialized(false);
+                setReceivedConsent('');
+                setSenderDevice('');
+                setConnectionStatus('Disconnected');
+                
+                Alert.alert('Success', 'All P2P connections have been reset');
+              } catch (error) {
+                console.error('Failed to disconnect:', error);
+                const errorMessage =
+                  error instanceof Error ? error.message : 'Unknown error occurred';
+                Alert.alert('Error', `Failed to disconnect: ${errorMessage}`);
+              }
+            },
+          },
+        ],
+      );
     } catch (error) {
-      console.error('Failed to disconnect:', error);
-      Alert.alert('Error', 'Failed to disconnect properly');
+      console.error('Error in disconnect handler:', error);
     }
   };
 
@@ -454,10 +587,16 @@ const ShowAadhaarDataScreen = () => {
 
           {!isP2PActive ? (
             <TouchableOpacity
-              style={styles.signButton}
+              style={[
+                styles.signButton,
+                isInitializingP2P && styles.signButtonDisabled,
+              ]}
               onPress={handleSignConsent}
+              disabled={isInitializingP2P}
             >
-              <Text style={styles.signButtonText}>🔐 Sign Consent</Text>
+              <Text style={styles.signButtonText}>
+                {isInitializingP2P ? '⏳ Initializing...' : '🔐 Sign Consent'}
+              </Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.stopButton} onPress={handleStopP2P}>
@@ -587,6 +726,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
+  },
+  signButtonDisabled: {
+    backgroundColor: '#e8e3db', // Light beige for disabled state
+    opacity: 0.6,
   },
   signButtonText: {
     color: '#2c2419', // Dark brown text
