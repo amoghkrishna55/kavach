@@ -36,7 +36,7 @@ export interface P2PMessage {
   toDevice: string;
   message: string;
   timestamp: number;
-  type: 'verification' | 'chat' | 'system';
+  type: 'verification' | 'chat' | 'system' | 'consent';
 }
 
 class P2PService {
@@ -84,6 +84,17 @@ class P2PService {
 
       // Initialize WiFi P2P
       await WifiP2pModule.initialize();
+
+      // Set device name to identify as Kavach app
+      try {
+        const deviceName = await this.generateDeviceName();
+        await WifiP2pModule.setDeviceName(deviceName);
+        console.log('Device name set to:', `Kavach-${deviceName}`);
+      } catch (error) {
+        console.warn('Could not set device name:', error);
+        // Continue initialization even if device name setting fails
+      }
+
       this.isInitialized = true;
 
       console.log('P2P Service initialized successfully');
@@ -214,7 +225,7 @@ class P2PService {
 
   // Start discovering nearby devices
   async startDiscovery(): Promise<void> {
-    console.log('Starting device discovery...');
+    console.log('Starting device discovery for Kavach devices...');
 
     if (!this.isInitialized) {
       throw new Error('P2P Service not initialized. Please initialize first.');
@@ -225,9 +236,13 @@ class P2PService {
     }
 
     try {
-      console.log('Calling WifiP2pModule.startPeerDiscovery...');
+      console.log(
+        'Calling WifiP2pModule.startPeerDiscovery (filtering for Kavach devices)...',
+      );
       await WifiP2pModule.startPeerDiscovery();
-      console.log('Started peer discovery successfully');
+      console.log(
+        'Started peer discovery successfully - only Kavach devices will be shown',
+      );
     } catch (error) {
       console.error('Failed to start discovery:', error);
 
@@ -422,92 +437,154 @@ class P2PService {
         this.connectionTimeouts.delete(device.deviceAddress);
       }
 
-      // Set connection timeout with retry logic
-      const timeoutId = setTimeout(async () => {
-        console.log('Connection timeout for device:', device.deviceAddress);
+      // Create a promise that resolves when the connection is fully established
+      return new Promise<boolean>((resolve, reject) => {
+        let connectionEstablished = false;
+        let timeoutCleared = false;
 
-        // Check if connection actually succeeded despite timeout
-        console.log('Checking connection status after timeout...');
-        try {
-          if (WifiP2pModule.requestConnectionInfo) {
-            const connectionInfo = await WifiP2pModule.requestConnectionInfo();
-            if (connectionInfo && connectionInfo.groupFormed) {
-              console.log(
-                'Connection actually succeeded, establishing socket connection...',
-              );
-              await this.checkAndEstablishSocketConnection();
-              return; // Don't treat as failure
-            }
-          }
-        } catch (error) {
-          console.error('Error checking connection after timeout:', error);
-        }
+        // Set connection timeout
+        const timeoutId = setTimeout(async () => {
+          if (connectionEstablished || timeoutCleared) return;
 
-        this.isConnecting = false;
-        this.connectionTimeouts.delete(device.deviceAddress);
+          console.log('Connection timeout for device:', device.deviceAddress);
+          timeoutCleared = true;
 
-        // Notify listeners of connection failure
-        this.connectionListeners.forEach(listener => {
+          // Check if connection actually succeeded despite timeout
+          console.log('Checking connection status after timeout...');
           try {
-            listener(device, false);
-          } catch (error) {
-            console.error('Error in connection listener:', error);
-          }
-        });
-      }, 30000); // 30 second timeout
-
-      this.connectionTimeouts.set(device.deviceAddress, timeoutId);
-
-      const result = await WifiP2pModule.connect(device.deviceAddress);
-
-      if (result) {
-        // Wait a bit for the connection to establish, then check connection info
-        console.log(
-          'WiFi Direct connection initiated, monitoring connection status...',
-        );
-
-        // Check connection status multiple times
-        const checkConnection = async (attempt: number) => {
-          try {
-            console.log(`Connection check attempt ${attempt}...`);
             if (WifiP2pModule.requestConnectionInfo) {
               const connectionInfo =
                 await WifiP2pModule.requestConnectionInfo();
-              console.log(
-                `Connection info (attempt ${attempt}):`,
-                connectionInfo,
-              );
-
               if (connectionInfo && connectionInfo.groupFormed) {
-                console.log('WiFi Direct connection established successfully!');
+                console.log(
+                  'Connection actually succeeded, establishing socket connection...',
+                );
                 await this.checkAndEstablishSocketConnection();
-                return true;
+                connectionEstablished = true;
+                this.isConnecting = false;
+                this.connectionTimeouts.delete(device.deviceAddress);
+                resolve(true);
+                return;
               }
             }
           } catch (error) {
-            console.error(`Connection check attempt ${attempt} failed:`, error);
+            console.error('Error checking connection after timeout:', error);
           }
-          return false;
-        };
 
-        // Check connection status at intervals: 2s, 5s, 10s, 15s
-        setTimeout(() => checkConnection(1), 2000);
-        setTimeout(() => checkConnection(2), 5000);
-        setTimeout(() => checkConnection(3), 10000);
-        setTimeout(() => checkConnection(4), 15000);
-      }
-
-      if (!result) {
-        this.isConnecting = false;
-        const timeout = this.connectionTimeouts.get(device.deviceAddress);
-        if (timeout) {
-          clearTimeout(timeout);
+          this.isConnecting = false;
           this.connectionTimeouts.delete(device.deviceAddress);
-        }
-      }
 
-      console.log('Connection initiated:', result);
-      return result;
+          // Notify listeners of connection failure
+          this.connectionListeners.forEach(listener => {
+            try {
+              listener(device, false);
+            } catch (error) {
+              console.error('Error in connection listener:', error);
+            }
+          });
+
+          reject(new Error('Connection timeout'));
+        }, 30000); // 30 second timeout
+
+        this.connectionTimeouts.set(device.deviceAddress, timeoutId);
+
+        // Start the connection process
+        WifiP2pModule.connect(device.deviceAddress)
+          .then((result: any) => {
+            if (!result) {
+              if (!timeoutCleared) {
+                clearTimeout(timeoutId);
+                this.connectionTimeouts.delete(device.deviceAddress);
+              }
+              this.isConnecting = false;
+              reject(new Error('Failed to initiate connection'));
+              return;
+            }
+
+            console.log(
+              'WiFi Direct connection initiated, waiting for group formation...',
+            );
+
+            // Check connection status with proper promise resolution
+            const checkConnection = async (attempt: number, delay: number) => {
+              if (connectionEstablished || timeoutCleared) return;
+
+              setTimeout(async () => {
+                if (connectionEstablished || timeoutCleared) return;
+
+                try {
+                  console.log(`Connection check attempt ${attempt}...`);
+                  if (WifiP2pModule.requestConnectionInfo) {
+                    const connectionInfo =
+                      await WifiP2pModule.requestConnectionInfo();
+                    console.log(
+                      `Connection info (attempt ${attempt}):`,
+                      connectionInfo,
+                    );
+
+                    if (connectionInfo && connectionInfo.groupFormed) {
+                      connectionEstablished = true;
+                      console.log(
+                        'WiFi Direct connection established successfully!',
+                      );
+
+                      // Clear timeout since connection succeeded
+                      if (!timeoutCleared) {
+                        clearTimeout(timeoutId);
+                        this.connectionTimeouts.delete(device.deviceAddress);
+                        timeoutCleared = true;
+                      }
+
+                      try {
+                        await this.checkAndEstablishSocketConnection();
+                        this.isConnecting = false;
+
+                        // Notify listeners of successful connection
+                        this.connectionListeners.forEach(listener => {
+                          try {
+                            listener(device, true);
+                          } catch (error) {
+                            console.error(
+                              'Error in connection listener:',
+                              error,
+                            );
+                          }
+                        });
+
+                        resolve(true);
+                      } catch (socketError) {
+                        console.error('Socket connection failed:', socketError);
+                        this.isConnecting = false;
+                        reject(new Error('Socket connection failed'));
+                      }
+                    }
+                  }
+                } catch (error) {
+                  console.error(
+                    `Connection check attempt ${attempt} failed:`,
+                    error,
+                  );
+                }
+              }, delay);
+            };
+
+            // Check connection status at intervals: 2s, 5s, 10s, 15s, 20s, 25s
+            checkConnection(1, 2000);
+            checkConnection(2, 5000);
+            checkConnection(3, 10000);
+            checkConnection(4, 15000);
+            checkConnection(5, 20000);
+            checkConnection(6, 25000);
+          })
+          .catch((error: any) => {
+            if (!timeoutCleared) {
+              clearTimeout(timeoutId);
+              this.connectionTimeouts.delete(device.deviceAddress);
+            }
+            this.isConnecting = false;
+            reject(error);
+          });
+      });
     } catch (error) {
       this.isConnecting = false;
       console.error('Failed to connect to device:', error);
@@ -519,7 +596,7 @@ class P2PService {
         this.connectionTimeouts.delete(device.deviceAddress);
       }
 
-      return false;
+      throw error;
     }
   }
 
@@ -591,6 +668,53 @@ class P2PService {
     }
   }
 
+  // Disconnect from all devices and reset P2P service
+  async disconnect(): Promise<boolean> {
+    try {
+      console.log(
+        'Disconnecting from all devices and resetting P2P service...',
+      );
+
+      // Stop discovery first
+      if (WifiP2pModule.stopDiscovery) {
+        try {
+          await WifiP2pModule.stopDiscovery();
+          console.log('Discovery stopped');
+        } catch (error) {
+          console.log('Error stopping discovery:', error);
+        }
+      }
+
+      // Disconnect from WiFi P2P
+      const success = await WifiP2pModule.disconnect();
+
+      if (success) {
+        console.log('Disconnected from WiFi P2P successfully');
+      } else {
+        console.log(
+          'WiFi P2P disconnect failed or no connection to disconnect',
+        );
+      }
+
+      // Clear all state
+      this.connectedDevices = [];
+      this.discoveredDevices = [];
+      this.isConnecting = false;
+
+      // Clear any pending timeouts
+      this.connectionTimeouts.forEach((timeout, address) => {
+        clearTimeout(timeout);
+      });
+      this.connectionTimeouts.clear();
+
+      console.log('P2P service state reset');
+      return success;
+    } catch (error) {
+      console.error('Failed to disconnect and reset P2P service:', error);
+      return false;
+    }
+  }
+
   // Disconnect from a device
   async disconnectFromDevice(device: P2PDevice): Promise<boolean> {
     try {
@@ -625,6 +749,7 @@ class P2PService {
   async sendMessage(
     message: string,
     targetDevice?: P2PDevice,
+    messageType: 'chat' | 'consent' | 'verification' | 'system' = 'chat',
   ): Promise<boolean> {
     try {
       const p2pMessage: P2PMessage = {
@@ -633,7 +758,7 @@ class P2PService {
         toDevice: targetDevice?.deviceAddress || 'broadcast',
         message,
         timestamp: Date.now(),
-        type: 'chat',
+        type: messageType,
       };
 
       const success = await WifiP2pModule.sendMessage(
@@ -687,6 +812,28 @@ class P2PService {
     } catch (error) {
       console.error('Failed to get connection status:', error);
       return null;
+    }
+  }
+
+  // Generate a unique device name for this app instance
+  private async generateDeviceName(): Promise<string> {
+    try {
+      // Try to get existing device name first
+      const existingName = await this.getDeviceName();
+
+      // If it already has our prefix, extract the base name
+      if (existingName && existingName.startsWith('Kavach-')) {
+        return existingName.substring(7); // Remove 'Kavach-' prefix
+      }
+
+      // Generate a new name based on device info
+      const deviceId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      return `Device-${deviceId}`;
+    } catch (error) {
+      console.warn('Could not generate device name:', error);
+      // Fallback to a simple random name
+      const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+      return `KVH-${randomId}`;
     }
   }
 

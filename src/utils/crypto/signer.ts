@@ -5,7 +5,7 @@ export class Signer {
   private publicKeyBytes: Uint8Array;
 
   constructor(privateKeyString: string) {
-    this.privateKeyBytes = this.parsePrivateKeyPEM(privateKeyString);
+    this.privateKeyBytes = Signer.parsePrivateKeyPEM(privateKeyString);
     this.publicKeyBytes = ed25519.getPublicKey(this.privateKeyBytes);
 
     // check if there is crypto module available, if not, throw error
@@ -17,7 +17,7 @@ export class Signer {
     }
   }
 
-  private parsePrivateKeyPEM(pemString: string): Uint8Array {
+  public static parsePrivateKeyPEM(pemString: string): Uint8Array {
     const base64String = pemString
       .replace(/-----BEGIN PRIVATE KEY-----/g, '')
       .replace(/-----END PRIVATE KEY-----/g, '')
@@ -30,7 +30,7 @@ export class Signer {
     return this.extractEd25519PrivateKey(derBytes);
   }
 
-  private base64ToUint8Array(base64: string): Uint8Array {
+  public static base64ToUint8Array(base64: string): Uint8Array {
     // For React Native/browser environments
     if (typeof atob !== 'undefined') {
       const binaryString = atob(base64);
@@ -49,7 +49,7 @@ export class Signer {
     throw new Error('No base64 decoder available');
   }
 
-  private extractEd25519PrivateKey(derBytes: Uint8Array): Uint8Array {
+  public static extractEd25519PrivateKey(derBytes: Uint8Array): Uint8Array {
     const ed25519OID = new Uint8Array([0x2b, 0x65, 0x70]);
     let oidFound = false;
 
@@ -92,7 +92,7 @@ export class Signer {
 
     return [
       '-----BEGIN PUBLIC KEY-----',
-      ...this.splitIntoLines(base64, 64),
+      ...Signer.splitIntoLines(base64, 64),
       '-----END PUBLIC KEY-----',
     ].join('\n');
   }
@@ -149,7 +149,7 @@ export class Signer {
     throw new Error('No base64 encoder available');
   }
 
-  private splitIntoLines(str: string, lineLength: number): string[] {
+  public static splitIntoLines(str: string, lineLength: number): string[] {
     const lines = [];
     for (let i = 0; i < str.length; i += lineLength) {
       lines.push(str.substr(i, lineLength));
@@ -157,7 +157,7 @@ export class Signer {
     return lines;
   }
 
-  private static parsePublicKeyPEM(pemString: string): Uint8Array {
+  public static parsePublicKeyPEM(pemString: string): Uint8Array {
     // Remove PEM headers and whitespace
     const base64String = pemString
       .replace(/-----BEGIN PUBLIC KEY-----/g, '')

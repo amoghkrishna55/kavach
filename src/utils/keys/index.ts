@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Signer, Encoder } from '../crypto/';
+import { Signer, Encoder } from '@ba3a-g/kavach';
 import { Buffer } from 'buffer';
 
 export const fetchAndStorePemFile = async (): Promise<string> => {
@@ -61,7 +61,7 @@ export const verifySignature = async (
 
   // Finally decoding data from QRBuffer
   const encoder = new Encoder();
-  const decodedData = encoder.decodeData(new Uint8Array(qrData).buffer);
+  const decodedData = encoder.decodeAadhaarData(new Uint8Array(qrData).buffer);
   console.log('Decoded data:', decodedData);
 
   return {

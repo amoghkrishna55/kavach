@@ -7,77 +7,17 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Encoder, Signer } from '../utils/crypto';
-import type { DecodedGender, DecodedVersion } from '../utils/crypto';
+import { Encoder, Signer } from '@ba3a-g/kavach';
+import type { DecodedGender, DecodedVersion } from '@ba3a-g/kavach';
 import { Buffer } from 'buffer';
 import { fetchAndStorePemFile, getStoredPemFile } from '../utils/keys';
 import ScannerScreen from './ScannerScreen';
+import KYCDashboardScreen from './KYCDashboardScreen';
+import ShowAadhaarDataScreen from './ShowAadhaarDataScreen';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<'data' | 'scan'>('data');
-  const [encodedData, setEncodedData] = useState<ArrayBuffer | null>(null);
-  const [signature, setSignature] = useState<string>('');
-  const [signatureWithData, setSignatureWithData] = useState<Uint8Array | null>(
-    null,
-  );
-  const [pemFileStatus, setPemFileStatus] = useState<string>('Checking...');
-
-  useEffect(() => {
-    const initializePemFile = async () => {
-      try {
-        const data = await getStoredPemFile();
-        if (data) {
-          setPemFileStatus('PEM file found in storage.');
-        } else {
-          const fetchedData = await fetchAndStorePemFile();
-          setPemFileStatus('PEM file fetched and stored.');
-        }
-      } catch (e) {
-        setPemFileStatus('Error retrieving PEM file.');
-        console.error('Error retrieving PEM file:', e);
-      }
-    };
-
-    initializePemFile();
-
-    // Crypto operations
-    let version = 1 as DecodedVersion;
-    let gender = 'Male' as DecodedGender;
-    let aadhaar = 123456789012;
-    let dob = { day: 1, month: 1, year: 2000 };
-    let name = 'Aryan Kumar';
-    let private_key = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIEmLPOpujqNBu0l2FTpShxFGMww3uZC/qZniqgnWqCUt
------END PRIVATE KEY-----`;
-
-    const encoder = new Encoder();
-    let encoded = encoder.encodeData(version, gender, aadhaar, dob, name);
-
-    console.log(encoded);
-    setEncodedData(encoded);
-
-    // Signing the data
-    const signer = new Signer(private_key);
-    const signatureBuffer = signer.sign(
-      Buffer.from(encoded).toString('base64'),
-    );
-    const signatureBase64 = Buffer.from(signatureBuffer).toString('base64');
-    console.log('Signature:', signatureBase64);
-    setSignature(signatureBase64);
-
-    // Signature + Data
-    let signatureWithEncodedData = new Uint8Array(
-      signatureBuffer.byteLength + encoded.byteLength,
-    );
-    signatureWithEncodedData.set(new Uint8Array(signatureBuffer), 0);
-    signatureWithEncodedData.set(
-      new Uint8Array(encoded),
-      signatureBuffer.byteLength,
-    );
-    console.log(signatureWithEncodedData);
-    setSignatureWithData(signatureWithEncodedData);
-  }, []);
 
   const navigateToScanner = () => {
     navigation.navigate('Scanner' as never);
@@ -88,56 +28,20 @@ MC4CAQAwBQYDK2VwBCIEIEmLPOpujqNBu0l2FTpShxFGMww3uZC/qZniqgnWqCUt
   };
 
   const navigateToP2PMessaging = () => {
-    navigation.navigate('P2PMessaging' as never);
+    navigation.navigate('ShowAadhaarData' as never);
   };
 
   const navigateToP2PTest = () => {
-    navigation.navigate('P2PTest' as never);
+    navigation.navigate('KYCDashboard' as never);
   };
 
   const renderDataTab = () => (
     <ScrollView style={styles.tabContent}>
       <Text style={styles.title}>Kavach</Text>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>PEM File Status:</Text>
-        <Text style={styles.value}>{pemFileStatus}</Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>Encoded Data:</Text>
-        <Text style={styles.value}>
-          {encodedData
-            ? `ArrayBuffer(${encodedData.byteLength} bytes)`
-            : 'Loading...'}
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>Signature (Base64):</Text>
-        <Text style={styles.value} numberOfLines={0}>
-          {signature || 'Loading...'}
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>Signature + Data:</Text>
-        <Text style={styles.value}>
-          {signatureWithData
-            ? `Uint8Array(${signatureWithData.length} bytes)`
-            : 'Loading...'}
-        </Text>
-      </View>
-
       {/* P2P Features Section */}
       <View style={styles.p2pSection}>
-        <Text style={styles.sectionTitle}>P2P Features</Text>
-        <Text style={styles.sectionSubtitle}>
-          Connect and communicate directly with other Kavach devices without
-          internet
-        </Text>
-
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.p2pButton}
           onPress={navigateToDeviceDiscovery}
         >
@@ -148,7 +52,7 @@ MC4CAQAwBQYDK2VwBCIEIEmLPOpujqNBu0l2FTpShxFGMww3uZC/qZniqgnWqCUt
               Find nearby Kavach devices
             </Text>
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={styles.p2pButton}
@@ -156,17 +60,15 @@ MC4CAQAwBQYDK2VwBCIEIEmLPOpujqNBu0l2FTpShxFGMww3uZC/qZniqgnWqCUt
         >
           <Text style={styles.p2pButtonIcon}>💬</Text>
           <View style={styles.p2pButtonContent}>
-            <Text style={styles.p2pButtonTitle}>P2P Messaging</Text>
-            <Text style={styles.p2pButtonDescription}>
-              Send messages and verification data
-            </Text>
+            <Text style={styles.p2pButtonTitle}>Aadhaar Info</Text>
+            <Text style={styles.p2pButtonDescription}>Verify KYC data</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.p2pButton} onPress={navigateToP2PTest}>
           <Text style={styles.p2pButtonIcon}>🔧</Text>
           <View style={styles.p2pButtonContent}>
-            <Text style={styles.p2pButtonTitle}>P2P Test</Text>
+            <Text style={styles.p2pButtonTitle}>Offline KYC</Text>
             <Text style={styles.p2pButtonDescription}>
               Test native module availability
             </Text>
@@ -178,7 +80,12 @@ MC4CAQAwBQYDK2VwBCIEIEmLPOpujqNBu0l2FTpShxFGMww3uZC/qZniqgnWqCUt
 
   return (
     <View style={styles.container}>
-      {activeTab === 'data' ? renderDataTab() : <ScannerScreen />}
+      {activeTab === 'data' ? (
+        renderDataTab()
+      ) : (
+        // renderDataTab()
+        <ScannerScreen />
+      )}
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
