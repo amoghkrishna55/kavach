@@ -18,22 +18,67 @@ export interface AadharUser {
   userPublicKey: string;
 }
 
+// Validate Aadhaar number format
+export const validateAadhaarNumber = (aadhaarNumber: string): boolean => {
+  // Remove spaces and check if it's exactly 12 digits
+  const cleanNumber = aadhaarNumber.replace(/\s/g, '');
+  return /^\d{12}$/.test(cleanNumber);
+};
+
 export const getAadharData = async (
   aadhaarNumber: string,
 ): Promise<AadharUser> => {
-  try {
-    const response = await fetch(
-      `https://sih-aadhar.vercel.app/api/people?aadhaar=${aadhaarNumber}`,
+  // Validate Aadhaar number format first
+  if (!validateAadhaarNumber(aadhaarNumber)) {
+    throw new Error(
+      'Invalid Aadhaar number format. Please enter a 12-digit number.',
     );
+  }
+
+  try {
+    const cleanNumber = aadhaarNumber.replace(/\s/g, '');
+    const response = await fetch(
+      `https://sih-aadhar.vercel.app/api/people?aadhaar=${cleanNumber}`,
+    );
+
+    // Check if the response is successful
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Aadhaar number not found in database');
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
 
-    // Store the fetched data in AsyncStorage
+    // Validate the data structure to ensure it's a valid AadharUser
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response format');
+    }
+
+    // Check if the response contains an error message
+    if (data.error || data.message) {
+      throw new Error(data.error || data.message || 'Aadhaar number not found');
+    }
+
+    // Validate required fields
+    if (!data.name || !data.aadhaar || !data.gender || !data.dob) {
+      throw new Error('Incomplete Aadhaar data received');
+    }
+
+    // Only store data if it's valid
     await AsyncStorage.setItem('aadhar', JSON.stringify(data));
+    console.log('Valid Aadhaar data fetched and stored:', data.name);
 
     return data;
   } catch (error) {
     console.error('Error fetching Aadhaar data:', error);
-    throw error;
+    // Don't store invalid data
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : 'Failed to fetch Aadhaar data. Please check the number and try again.',
+    );
   }
 };
 
@@ -138,6 +183,13 @@ export const verifyStoredData = async (): Promise<boolean> => {
       return false;
     }
 
+    // Check if stored data is valid
+    if (!data.name || !data.aadhaar || !data.gender || !data.dob) {
+      console.warn('Invalid data found in storage, clearing...');
+      await clearStoredAadharData();
+      return false;
+    }
+
     console.log('Stored Aadhaar Data:');
     console.log('Name:', data.name);
     console.log('Aadhaar:', data.aadhaar);
@@ -155,6 +207,8 @@ export const verifyStoredData = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Error verifying stored data:', error);
+    // Clear corrupted data
+    await clearStoredAadharData();
     return false;
   }
 };

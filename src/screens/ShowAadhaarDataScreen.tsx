@@ -20,6 +20,7 @@ import {
   getStoredAadharData,
   getAadharData,
   storeAadharData,
+  validateAadhaarNumber,
   type AadharUser,
 } from '../utils/aadhar';
 
@@ -136,7 +137,25 @@ const ShowAadhaarDataScreen = () => {
       setIsLoadingAadhar(true);
       const storedData = await getStoredAadharData();
       if (storedData) {
+        // Validate stored data - check if essential fields exist
+        if (
+          !storedData.name ||
+          !storedData.aadhaar ||
+          !storedData.userPrivateKey
+        ) {
+          console.log('Invalid Aadhaar data found in storage, clearing...');
+          // Clear invalid data from storage
+          await AsyncStorage.removeItem('aadhar');
+          console.log('Cleared invalid Aadhaar data from storage');
+          setAadharData(null);
+          return;
+        }
+
         setAadharData(storedData);
+        console.log(
+          'Private key loaded:',
+          storedData.userPrivateKey.substring(0, 10) + '...',
+        );
         // Generate QR code for signature
         if (storedData.signatureWithEncodedData) {
           generateSignatureQR(storedData.signatureWithEncodedData);
@@ -147,6 +166,13 @@ const ShowAadhaarDataScreen = () => {
       }
     } catch (error) {
       console.error('Failed to load Aadhaar data:', error);
+      // If there's an error parsing stored data, clear it
+      try {
+        await AsyncStorage.removeItem('aadhar');
+        console.log('Cleared corrupted Aadhaar data from storage');
+      } catch (clearError) {
+        console.error('Failed to clear corrupted data:', clearError);
+      }
     } finally {
       setIsLoadingAadhar(false);
     }
@@ -158,8 +184,12 @@ const ShowAadhaarDataScreen = () => {
       return;
     }
 
-    if (aadhaarInput.length !== 12) {
-      Alert.alert('Error', 'Aadhaar number must be 12 digits');
+    // Use the validation function from utils
+    if (!validateAadhaarNumber(aadhaarInput.trim())) {
+      Alert.alert(
+        'Error',
+        'Invalid Aadhaar number format. Please enter a 12-digit number.',
+      );
       return;
     }
 
@@ -172,13 +202,15 @@ const ShowAadhaarDataScreen = () => {
         generateSignatureQR(fetchedData.signatureWithEncodedData);
       }
       setAadhaarInput('');
-      Alert.alert('Success', 'Aadhaar data fetched and stored successfully');
+      Alert.alert(
+        'Success',
+        `Aadhaar data for ${fetchedData.name} fetched and stored successfully`,
+      );
     } catch (error) {
       console.error('Failed to fetch Aadhaar data:', error);
-      Alert.alert(
-        'Error',
-        'Failed to fetch Aadhaar data. Please check the number and try again.',
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoadingAadhar(false);
     }
@@ -190,17 +222,27 @@ const ShowAadhaarDataScreen = () => {
       return;
     }
 
+    if (!aadharData || !aadharData.userPrivateKey) {
+      Alert.alert(
+        'Error',
+        'No private key available. Please load Aadhaar data first.',
+      );
+      return;
+    }
+
     try {
       // Simulate processing consent and generating certificate
       setConnectionStatus('Processing consent...');
-      const private_key = (await AsyncStorage.getItem('private_key')) as string;
+      const private_key = aadharData.userPrivateKey;
+      Alert.alert('Private Key', private_key);
 
-      const signer = new Signer(private_key);
-      const certificateResponse = signer.sign(receivedConsent);
+      // const signer = new Signer(private_key);
+      // const certificateResponse = signer.sign(receivedConsent);
 
       // Send certificate back to KYC dashboard
       const success = await P2PService.sendMessage(
-        JSON.stringify(certificateResponse),
+        // JSON.stringify(certificateResponse),
+        'hello',
         undefined, // Send to connected device
         'verification',
       );
@@ -222,10 +264,10 @@ const ShowAadhaarDataScreen = () => {
     } catch (error) {
       console.error('Failed to process consent:', error);
       setConnectionStatus('Error processing consent');
-      Alert.alert(
-        'Error',
-        'Failed to process consent and generate certificate',
-      );
+      // Alert.alert(
+      //   'Error',
+      //   'Failed to process consent and generate certificate',
+      // );
     }
   };
 
@@ -312,35 +354,46 @@ const ShowAadhaarDataScreen = () => {
             <View>
               <View style={styles.dataRow}>
                 <Text style={styles.dataLabel}>Name:</Text>
-                <Text style={styles.dataValue}>{aadharData.name}</Text>
+                <Text style={styles.dataValue}>
+                  {aadharData.name || 'Not available'}
+                </Text>
               </View>
 
               <View style={styles.dataRow}>
                 <Text style={styles.dataLabel}>Gender:</Text>
-                <Text style={styles.dataValue}>{aadharData.gender}</Text>
+                <Text style={styles.dataValue}>
+                  {aadharData.gender || 'Not available'}
+                </Text>
               </View>
 
               <View style={styles.dataRow}>
                 <Text style={styles.dataLabel}>Aadhaar:</Text>
                 <Text style={styles.dataValue}>
-                  {aadharData.aadhaar.replace(
-                    /(\d{4})(\d{4})(\d{4})/,
-                    '$1 $2 $3',
-                  )}
+                  {aadharData.aadhaar
+                    ? aadharData.aadhaar.replace(
+                        /(\d{4})(\d{4})(\d{4})/,
+                        '$1 $2 $3',
+                      )
+                    : 'Not available'}
                 </Text>
               </View>
 
               <View style={styles.dataRow}>
                 <Text style={styles.dataLabel}>Date of Birth:</Text>
                 <Text style={styles.dataValue}>
-                  {`${aadharData.dob.day}/${aadharData.dob.month}/${aadharData.dob.year}`}
+                  {aadharData.dob &&
+                  aadharData.dob.day &&
+                  aadharData.dob.month &&
+                  aadharData.dob.year
+                    ? `${aadharData.dob.day}/${aadharData.dob.month}/${aadharData.dob.year}`
+                    : 'Not available'}
                 </Text>
               </View>
 
               <View style={styles.dataRow}>
                 <Text style={styles.dataLabel}>Public Key:</Text>
                 <Text style={styles.dataValueSmall} numberOfLines={2}>
-                  {aadharData.userPublicKey}
+                  {aadharData.userPublicKey || 'Not available'}
                 </Text>
               </View>
 
@@ -351,7 +404,7 @@ const ShowAadhaarDataScreen = () => {
                   horizontal={true}
                 >
                   <Text style={styles.certificateText}>
-                    {aadharData.pemCertificate}
+                    {aadharData.pemCertificate || 'Not available'}
                   </Text>
                 </ScrollView>
               </View>
@@ -451,7 +504,7 @@ const ShowAadhaarDataScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#f8f6f3', // Primary beige background
   },
   header: {
     flexDirection: 'row',
@@ -459,19 +512,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#059669',
+    backgroundColor: '#d4c4a0', // Primary beige accent
     paddingTop: 50,
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 16,
     fontWeight: '500',
   },
   headerTitle: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -493,16 +546,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e8e3db',
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#2c2419', // Dark brown text
     marginBottom: 12,
   },
   cardDescription: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
     marginBottom: 16,
     lineHeight: 20,
   },
@@ -519,59 +574,64 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#2c2419', // Dark brown text
   },
   signButton: {
-    backgroundColor: '#059669',
+    backgroundColor: '#d4c4a0', // Primary beige accent
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   signButtonText: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 18,
     fontWeight: 'bold',
   },
   stopButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#c49a6c', // Darker beige for warning/stop actions
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
   },
   stopButtonText: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 16,
     fontWeight: '600',
   },
   senderInfo: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
     marginBottom: 12,
     fontStyle: 'italic',
   },
   consentContainer: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f0eae0', // Light beige highlight
     padding: 16,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#059669',
+    borderLeftColor: '#d4c4a0', // Primary beige accent
     marginBottom: 16,
   },
   consentLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#2c2419', // Dark brown text
     marginBottom: 8,
   },
   consentText: {
     fontSize: 14,
-    color: '#1f2937',
+    color: '#2c2419', // Dark brown text
     lineHeight: 20,
   },
   processButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#8b4513', // Darker brown for primary actions
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -584,49 +644,50 @@ const styles = StyleSheet.create({
   },
   waitingText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 20,
   },
   infoText: {
     fontSize: 14,
-    color: '#374151',
+    color: '#2c2419', // Dark brown text
     lineHeight: 22,
   },
   disconnectButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#c49a6c', // Darker beige for warning actions
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
   },
   disconnectButtonText: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 14,
     fontWeight: '600',
   },
   aadhaarInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#e8e3db',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
+    color: '#2c2419', // Dark brown text
   },
   fetchButton: {
-    backgroundColor: '#059669',
+    backgroundColor: '#d4c4a0', // Primary beige accent
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
   },
   fetchButtonDisabled: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: '#b8a584', // Muted beige for disabled state
   },
   fetchButtonText: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 16,
     fontWeight: '600',
   },
@@ -642,36 +703,38 @@ const styles = StyleSheet.create({
   dataLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#2c2419', // Dark brown text
     minWidth: 100,
     marginRight: 12,
   },
   dataValue: {
     fontSize: 14,
-    color: '#1f2937',
+    color: '#6b5e4f', // Medium brown text
     flex: 1,
   },
   dataValueSmall: {
     fontSize: 12,
-    color: '#1f2937',
+    color: '#6b5e4f', // Medium brown text
     flex: 1,
     fontFamily: 'monospace',
   },
   certificateContainer: {
     maxHeight: 100,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f0eae0', // Light beige highlight
     borderRadius: 6,
     padding: 8,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e8e3db',
   },
   certificateText: {
     fontSize: 11,
-    color: '#374151',
+    color: '#6b5e4f', // Medium brown text
     fontFamily: 'monospace',
     lineHeight: 14,
   },
   clearButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#c49a6c', // Darker beige for warning actions
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
@@ -679,7 +742,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   clearButtonText: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 14,
     fontWeight: '600',
   },
@@ -691,18 +754,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginVertical: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e8e3db',
   },
   qrPlaceholder: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 32,
   },
   qrDescription: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
     textAlign: 'center',
     marginTop: 8,
     fontStyle: 'italic',

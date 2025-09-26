@@ -371,7 +371,7 @@ const KYCDashboardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8f6f3', // Primary beige background
   },
   header: {
     flexDirection: 'row',
@@ -379,30 +379,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#d4c4a0', // Primary beige accent
     paddingTop: 50,
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 16,
     fontWeight: '500',
   },
   headerTitle: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 20,
     fontWeight: 'bold',
   },
   disconnectButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#c49a6c', // Darker beige for warning actions
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
   },
   disconnectButtonText: {
-    color: '#ffffff',
+    color: '#2c2419', // Dark brown text
     fontSize: 12,
     fontWeight: '600',
   },
@@ -421,36 +421,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e8e3db',
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#2c2419', // Dark brown text
     marginBottom: 12,
   },
   cardDescription: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
     marginBottom: 16,
     lineHeight: 20,
   },
-
   inputContainer: {
     marginBottom: 20,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#2c2419', // Dark brown text
     marginBottom: 8,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#e8e3db',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#1f2937',
+    color: '#2c2419', // Dark brown text
     backgroundColor: '#ffffff',
     minHeight: 120,
   },
@@ -466,7 +467,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#8b4513', // Darker brown for primary actions
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   submitButtonText: {
     color: '#ffffff',
@@ -474,32 +480,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   resetButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f0eae0', // Light beige highlight
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#e8e3db',
   },
   resetButtonText: {
-    color: '#374151',
+    color: '#2c2419', // Dark brown text
     fontSize: 16,
     fontWeight: '500',
   },
   successMessage: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#f0eae0', // Light beige highlight
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#10b981',
+    borderLeftColor: '#d4c4a0', // Primary beige accent
   },
   successText: {
-    color: '#166534',
+    color: '#8b4513', // Darker brown for success text
     fontSize: 14,
     fontWeight: '500',
   },
   historyItem: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#e8e3db',
   },
   historyHeader: {
     flexDirection: 'row',
@@ -510,46 +516,46 @@ const styles = StyleSheet.create({
   historyIndex: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#2563eb',
+    color: '#8b4513', // Darker brown for accents
   },
   historyTimestamp: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
   },
   historyText: {
     fontSize: 14,
-    color: '#374151',
+    color: '#2c2419', // Dark brown text
     lineHeight: 20,
   },
   noDevicesText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
     textAlign: 'center',
     paddingVertical: 20,
     fontStyle: 'italic',
   },
   deviceItem: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f0eae0', // Light beige highlight
     padding: 16,
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e8e3db',
   },
   deviceName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#2c2419', // Dark brown text
     marginBottom: 4,
   },
   deviceAddress: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#6b5e4f', // Medium brown text
     marginBottom: 4,
   },
   deviceStatus: {
     fontSize: 12,
-    color: '#059669',
+    color: '#8b4513', // Darker brown for status
     fontWeight: '500',
   },
   statusBadge: {
@@ -562,41 +568,41 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusPending: {
-    backgroundColor: '#fef3c7',
-    color: '#92400e',
+    backgroundColor: '#f5e6d3', // Light beige for pending
+    color: '#8b4513', // Darker brown text
   },
   statusSent: {
-    backgroundColor: '#dbeafe',
-    color: '#1e40af',
+    backgroundColor: '#e8e3db', // Neutral beige for sent
+    color: '#6b5e4f', // Medium brown text
   },
   statusVerified: {
-    backgroundColor: '#dcfce7',
-    color: '#166534',
+    backgroundColor: '#f0eae0', // Light beige for verified
+    color: '#8b4513', // Darker brown text
   },
   deviceInfo: {
     fontSize: 12,
-    color: '#059669',
+    color: '#8b4513', // Darker brown for info
     fontWeight: '500',
     marginTop: 8,
     fontStyle: 'italic',
   },
   responseContainer: {
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#f0eae0', // Light beige highlight
     padding: 12,
     borderRadius: 6,
     marginTop: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#0ea5e9',
+    borderLeftColor: '#d4c4a0', // Primary beige accent
   },
   responseLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0369a1',
+    color: '#8b4513', // Darker brown for labels
     marginBottom: 4,
   },
   responseText: {
     fontSize: 13,
-    color: '#1e293b',
+    color: '#2c2419', // Dark brown text
     lineHeight: 18,
   },
 });
