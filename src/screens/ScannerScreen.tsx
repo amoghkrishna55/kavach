@@ -204,52 +204,59 @@ const styles = StyleSheet.create({
   // Main Container
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#f8f6f3', // Primary beige background
   },
 
   // PEM Setup Screen
   pemContainer: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#f8f6f3', // Primary beige background
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
   },
   pemCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 32,
     alignItems: 'center',
     maxWidth: 320,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
+    borderWidth: 1,
+    borderColor: '#e8e3db',
   },
   pemTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: '#2c2419', // Dark brown text
     marginBottom: 12,
     textAlign: 'center',
   },
   pemMessage: {
     fontSize: 16,
-    color: '#a0a0a3',
+    color: '#6b5e4f', // Medium brown text
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 24,
   },
   pemButton: {
-    backgroundColor: '#007aff',
+    backgroundColor: '#d4c4a0', // Primary beige accent
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
     minWidth: 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   pemButtonText: {
-    color: '#fff',
+    color: '#2c2419', // Dark brown text
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
@@ -267,12 +274,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e8e3db',
   },
   backButtonText: {
-    color: '#fff',
+    color: '#2c2419', // Dark brown text
     fontSize: 20,
     fontWeight: '500',
   },
@@ -280,7 +289,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
+    color: '#2c2419', // Dark brown text
     textAlign: 'center',
   },
   headerSpacer: {
@@ -296,7 +305,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#a0a0a3',
+    color: '#6b5e4f', // Medium brown text
     textAlign: 'center',
     marginBottom: 40,
     fontWeight: '400',
@@ -331,9 +340,9 @@ const styles = StyleSheet.create({
     bottom: 20,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#007aff',
+    borderColor: '#d4c4a0', // Primary beige accent
     borderStyle: 'dashed',
-    opacity: 0.6,
+    opacity: 0.8,
   },
   corners: {
     position: 'absolute',
@@ -346,7 +355,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 24,
     height: 24,
-    borderColor: '#007aff',
+    borderColor: '#d4c4a0', // Primary beige accent
     borderWidth: 3,
   },
   topLeft: {
@@ -381,7 +390,7 @@ const styles = StyleSheet.create({
   // Status Text
   statusText: {
     fontSize: 16,
-    color: '#a0a0a3',
+    color: '#6b5e4f', // Medium brown text
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -393,16 +402,21 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   refetchButton: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: '#ffffff',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: '#e8e3db',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   refetchButtonText: {
-    color: '#a0a0a3',
+    color: '#6b5e4f', // Medium brown text
     fontSize: 15,
     fontWeight: '500',
   },
@@ -412,17 +426,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingBottom: 10,
     fontSize: 16,
-    color: '#fff',
+    color: '#2c2419', // Dark brown text
   },
   button: {
-    backgroundColor: '#007aff',
+    backgroundColor: '#d4c4a0', // Primary beige accent
     padding: 15,
     borderRadius: 12,
     margin: 20,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   buttonText: {
-    color: 'white',
+    color: '#2c2419', // Dark brown text
     fontSize: 16,
     fontWeight: '600',
   },

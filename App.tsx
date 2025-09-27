@@ -13,27 +13,24 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from './src/screens/HomeScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
 import VerificationResultScreen from './src/screens/VerificationResultScreen';
+import DeviceDiscoveryScreen from './src/screens/DeviceDiscoveryScreen';
+import P2PMessagingScreen from './src/screens/P2PMessagingScreen';
+import P2PTestScreen from './src/screens/P2PTestScreen';
+import KYCDashboardScreen from './src/screens/KYCDashboardScreen';
+import ShowAadhaarDataScreen from './src/screens/ShowAadhaarDataScreen';
 
 // Define the navigation types
 export type RootStackParamList = {
   Home: undefined;
   Scanner: undefined;
   VerificationResult: {
-    result: {
-      isValid: boolean;
-      decodedData: {
-        name: string;
-        aadhaar: string;
-        gender: string;
-        dob: {
-          day: string;
-          month: string;
-          year: string;
-        };
-        version: string;
-      };
-    };
+    verificationResult: any;
   };
+  DeviceDiscovery: undefined;
+  P2PMessaging: undefined;
+  P2PTest: undefined;
+  KYCDashboard: undefined;
+  ShowAadhaarData: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -53,6 +50,17 @@ export default function App() {
           <Stack.Screen
             name="VerificationResult"
             component={VerificationResultScreen}
+          />
+          <Stack.Screen
+            name="DeviceDiscovery"
+            component={DeviceDiscoveryScreen}
+          />
+          <Stack.Screen name="P2PMessaging" component={P2PMessagingScreen} />
+          <Stack.Screen name="P2PTest" component={P2PTestScreen} />
+          <Stack.Screen name="KYCDashboard" component={KYCDashboardScreen} />
+          <Stack.Screen
+            name="ShowAadhaarData"
+            component={ShowAadhaarDataScreen}
           />
         </Stack.Navigator>
       </NavigationContainer>

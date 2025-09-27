@@ -9,6 +9,8 @@ import type {
   DecodedDOB,
   EncodedAadhaar,
   DecodedAadhaar,
+  EncodedPAN,
+  DecodedPAN,
 } from './types';
 
 export class Encoder {
@@ -30,15 +32,21 @@ export class Encoder {
     return charArray;
   }
 
-  public static decodeString(input: EncodedChar[]): string {
+  // ToDo: Refactor
+  public static decodeString(input: EncodedChar[]): {
+    data: string;
+    stopAtIndex: number;
+  } {
     let output = '';
+    let i = 0;
     for (const char of input) {
       if (char == Charset['\x00']) {
         break;
       }
       output += ReverseCharset[char];
+      i++;
     }
-    return output;
+    return { data: output, stopAtIndex: i + 1 };
   }
 
   public static encodeVersion(input: DecodedVersion): EncodedVersion {
@@ -94,7 +102,7 @@ export class Encoder {
     return { day, month, year };
   }
 
-  public static encodeAadhaar(input: DecodedAadhaar): EncodedAadhaar {
+  public static encodeAadhaarNumber(input: DecodedAadhaar): EncodedAadhaar {
     return input.toString(2).padStart(40, '0').split('') as EncodedAadhaar;
   }
 
@@ -105,7 +113,111 @@ export class Encoder {
     return parseInt(input.join(''), 2) as DecodedAadhaar;
   }
 
-  public encodeData(
+  public static encodePANNumber(input: DecodedPAN): EncodedPAN {
+    let bitstring = '';
+    input = input.toUpperCase();
+    let panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(input)) {
+      throw new Error('Invalid PAN format');
+    }
+    for (let i = 0; i < 5; i++) {
+      bitstring += Charset[input[i]];
+    }
+
+    let numberInBinary = parseInt(input.slice(5, 9), 10)
+      .toString(2)
+      .padStart(14, '0');
+    bitstring += numberInBinary;
+
+    bitstring += Charset[input[9]];
+
+    return bitstring.split('') as EncodedPAN;
+  }
+
+  public static decodePANNumber(input: EncodedPAN): DecodedPAN {
+    if (input.length !== 44) {
+      throw new Error('decodePANNumber: Invalid PAN length');
+    }
+    let PAN = '';
+    for (let i = 0; i < 25; i += 5) {
+      PAN += ReverseCharset[input.slice(i, i + 5).join('')];
+    }
+    PAN += parseInt(input.slice(25, 39).join(''), 2)
+      .toString(10)
+      .padStart(4, '0');
+    PAN += ReverseCharset[input.slice(39, 44).join('')];
+    return PAN as DecodedPAN;
+  }
+
+  public encodePANData(
+    version: DecodedVersion,
+    name: string,
+    dob: DecodedDOB,
+    pan: DecodedPAN,
+    fathersName: string,
+  ): ArrayBuffer {
+    let encodedData = [];
+    encodedData.push(...Encoder.encodeVersion(version));
+    encodedData.push(...['0', '1']); // 01 is PAN
+    encodedData.push(...Encoder.encodeDOB(dob));
+    encodedData.push(...Encoder.encodePANNumber(pan));
+    encodedData.push(...Encoder.encodeString(name).join(''));
+    encodedData.push(...Encoder.encodeString(fathersName).join(''));
+    let byteArray = new Uint8Array(Math.ceil(encodedData.length / 8));
+    for (let i = 0; i < encodedData.length; i++) {
+      if (encodedData[i] === '1') {
+        byteArray[Math.floor(i / 8)] |= 1 << (7 - (i % 8));
+      }
+    }
+    return byteArray.buffer;
+  }
+
+  public decodePANData(data: ArrayBuffer): {
+    version: DecodedVersion;
+    name: string;
+    dob: DecodedDOB;
+    pan: DecodedPAN;
+    fathersName: string;
+  } {
+    let bitString = '';
+    const byteArray = new Uint8Array(data);
+    for (let i = 0; i < byteArray.length; i++) {
+      bitString += byteArray[i].toString(2).padStart(8, '0');
+    }
+    let version = Encoder.decodeVersion(
+      bitString.slice(0, 3) as EncodedVersion,
+    );
+    let dob = Encoder.decodeDOB(bitString.slice(5, 23).split('') as EncodedDOB);
+    let panBits: EncodedPAN = [];
+    panBits = bitString.slice(23, 67).split('') as EncodedPAN;
+    let pan = Encoder.decodePANNumber(panBits);
+    let nameBits: EncodedChar[] = [];
+    for (let i = 23 + panBits.length; i < bitString.length; i += 5) {
+      nameBits.push(bitString.slice(i, i + 5) as EncodedChar);
+    }
+    let decodedName = Encoder.decodeString(nameBits);
+    let name = decodedName.data;
+    let stopAtIndex = decodedName.stopAtIndex;
+    let fathersNameBits: EncodedChar[] = [];
+    for (
+      let i = 23 + panBits.length + stopAtIndex * 5;
+      i < bitString.length;
+      i += 5
+    ) {
+      fathersNameBits.push(bitString.slice(i, i + 5) as EncodedChar);
+    }
+    let decodedFathersName = Encoder.decodeString(fathersNameBits);
+    let fathersName = decodedFathersName.data;
+    return {
+      version,
+      name,
+      dob,
+      pan,
+      fathersName,
+    };
+  }
+
+  public encodeAadhaarData(
     version: DecodedVersion,
     gender: DecodedGender,
     aadhaar: DecodedAadhaar,
@@ -114,8 +226,9 @@ export class Encoder {
   ): ArrayBuffer {
     let encodedData = [];
     encodedData.push(...Encoder.encodeVersion(version));
+    encodedData.push(...['0', '0']); // 00 is Aadhaar
     encodedData.push(...Encoder.encodeGender(gender));
-    encodedData.push(...Encoder.encodeAadhaar(aadhaar));
+    encodedData.push(...Encoder.encodeAadhaarNumber(aadhaar));
     encodedData.push(...Encoder.encodeDOB(dob));
     encodedData.push(...Encoder.encodeString(name).join(''));
     let byteArray = new Uint8Array(Math.ceil(encodedData.length / 8));
@@ -127,7 +240,7 @@ export class Encoder {
     return byteArray.buffer;
   }
 
-  public decodeData(data: ArrayBuffer): {
+  public decodeAadhaarData(data: ArrayBuffer): {
     version: DecodedVersion;
     gender: DecodedGender;
     aadhaar: DecodedAadhaar;
@@ -143,18 +256,18 @@ export class Encoder {
     let version = Encoder.decodeVersion(
       bitString.slice(0, 3) as EncodedVersion,
     );
-    let gender = Encoder.decodeGender(bitString.slice(3, 5) as EncodedGender);
+    let gender = Encoder.decodeGender(bitString.slice(5, 7) as EncodedGender);
     let aadhaar = Encoder.decodeAadhaar(
-      bitString.slice(5, 45).split('') as EncodedAadhaar,
+      bitString.slice(7, 47).split('') as EncodedAadhaar,
     );
     let dob = Encoder.decodeDOB(
-      bitString.slice(45, 63).split('') as EncodedDOB,
+      bitString.slice(47, 65).split('') as EncodedDOB,
     );
     let nameBits: EncodedChar[] = [];
-    for (let i = 63; i < bitString.length; i += 5) {
+    for (let i = 65; i < bitString.length; i += 5) {
       nameBits.push(bitString.slice(i, i + 5) as EncodedChar);
     }
-    let name = Encoder.decodeString(nameBits);
+    let name = Encoder.decodeString(nameBits).data;
     return {
       version,
       gender,
