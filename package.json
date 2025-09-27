@@ -10,7 +10,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@ba3a-g/kavach": "^0.1.1",
     "@noble/curves": "^2.0.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native/new-app-screen": "0.81.4",

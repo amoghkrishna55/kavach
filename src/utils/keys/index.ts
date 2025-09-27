@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Signer, Encoder } from '@ba3a-g/kavach';
+import { Signer, Encoder } from '../crypto';
 import { Buffer } from 'buffer';
 
 export const fetchAndStorePemFile = async (): Promise<string> => {

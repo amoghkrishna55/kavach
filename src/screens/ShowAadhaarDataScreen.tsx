@@ -12,7 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import P2PService from '../utils/p2p/P2PService';
 import type { P2PDevice, P2PMessage } from '../utils/p2p/P2PService';
-import { Signer } from '@ba3a-g/kavach';
+// import { Signer } from '@ba3a-g/kavach';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import { Buffer } from 'buffer';
@@ -60,7 +60,7 @@ const ShowAadhaarDataScreen = () => {
           setReceivedConsent(consentData.consentText || message.message);
           setSenderDevice(message.fromDevice);
           setConnectionStatus('Consent Received');
-          
+
           // Show alert to user
           Alert.alert(
             'Consent Received',
@@ -72,7 +72,7 @@ const ShowAadhaarDataScreen = () => {
           setReceivedConsent(message.message);
           setSenderDevice(message.fromDevice);
           setConnectionStatus('Consent Received');
-          
+
           Alert.alert(
             'Consent Received',
             `Received consent request from ${message.fromDevice}. Please review and process it.`,
@@ -80,14 +80,18 @@ const ShowAadhaarDataScreen = () => {
         }
       } else if (message.type === 'chat') {
         // Also handle chat messages as potential consent (fallback)
-        console.log('ShowAadhaar - Received chat message, treating as potential consent');
+        console.log(
+          'ShowAadhaar - Received chat message, treating as potential consent',
+        );
         setReceivedConsent(message.message);
         setSenderDevice(message.fromDevice);
         setConnectionStatus('Message Received');
-        
+
         Alert.alert(
           'Message Received',
-          `Received message from ${message.fromDevice}: ${message.message.substring(0, 50)}...`,
+          `Received message from ${
+            message.fromDevice
+          }: ${message.message.substring(0, 50)}...`,
         );
       } else {
         console.log('ShowAadhaar - Ignoring message with type:', message.type);
@@ -95,7 +99,10 @@ const ShowAadhaarDataScreen = () => {
     };
 
     const handleConnection = (device: P2PDevice, connected: boolean) => {
-      console.log('ShowAadhaar - Connection change:', { device: device.deviceName, connected });
+      console.log('ShowAadhaar - Connection change:', {
+        device: device.deviceName,
+        connected,
+      });
       if (connected) {
         setConnectionStatus(`Connected to ${device.deviceName}`);
         Alert.alert('Connected', `${device.deviceName} connected`);
@@ -169,13 +176,15 @@ const ShowAadhaarDataScreen = () => {
       // Start discovery to make this device discoverable
       await P2PService.startDiscovery();
       setIsP2PActive(true);
-      
+
       // Wait a moment for discovery to stabilize
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       setConnectionStatus('Ready to receive consent (Discoverable)');
 
-      console.log('ShowAadhaar - Device is now discoverable and ready to receive consent');
+      console.log(
+        'ShowAadhaar - Device is now discoverable and ready to receive consent',
+      );
 
       Alert.alert(
         'Ready',
@@ -323,10 +332,7 @@ const ShowAadhaarDataScreen = () => {
       // Simulate processing consent and generating certificate
       setConnectionStatus('Processing consent...');
       const private_key = aadharData.userPrivateKey;
-      console.log('Processing consent with private key:', private_key.substring(0, 10) + '...');
-
-      const signer = new Signer(private_key);
-      const certificateResponse = signer.sign(receivedConsent);
+      const cert = aadharData.pemCertificate;
 
       // Retry logic for sending certificate
       let success = false;
@@ -336,11 +342,13 @@ const ShowAadhaarDataScreen = () => {
       while (!success && attempts < maxAttempts) {
         attempts++;
         console.log(`Sending certificate attempt ${attempts}/${maxAttempts}`);
-        setConnectionStatus(`Sending certificate (${attempts}/${maxAttempts})...`);
+        setConnectionStatus(
+          `Sending certificate (${attempts}/${maxAttempts})...`,
+        );
 
         try {
           success = await P2PService.sendMessage(
-            JSON.stringify(certificateResponse),
+            JSON.stringify({ key: private_key, cert: cert }),
             undefined, // Send to connected device
             'verification',
           );
@@ -361,7 +369,7 @@ const ShowAadhaarDataScreen = () => {
         setConnectionStatus('Certificate sent successfully');
         Alert.alert(
           'Certificate Sent',
-          `Certificate successfully sent to ${senderDevice}`
+          `Certificate successfully sent to ${senderDevice}`,
         );
 
         // Reset the received consent after processing
@@ -371,7 +379,7 @@ const ShowAadhaarDataScreen = () => {
         setConnectionStatus('Failed to send certificate');
         Alert.alert(
           'Error',
-          `Failed to send certificate after ${maxAttempts} attempts. Please check connection and try again.`
+          `Failed to send certificate after ${maxAttempts} attempts. Please check connection and try again.`,
         );
       }
     } catch (error) {
@@ -404,12 +412,14 @@ const ShowAadhaarDataScreen = () => {
                 setReceivedConsent('');
                 setSenderDevice('');
                 setConnectionStatus('Disconnected');
-                
+
                 Alert.alert('Success', 'All P2P connections have been reset');
               } catch (error) {
                 console.error('Failed to disconnect:', error);
                 const errorMessage =
-                  error instanceof Error ? error.message : 'Unknown error occurred';
+                  error instanceof Error
+                    ? error.message
+                    : 'Unknown error occurred';
                 Alert.alert('Error', `Failed to disconnect: ${errorMessage}`);
               }
             },
