@@ -75,17 +75,17 @@ export default function App() {
             name="ShowAadhaarData"
             component={ShowAadhaarDataScreen}
           />
-          <Stack.Screen 
-            name="MockupKYCDashboard" 
-            component={MockupKYCDashboard} 
+          <Stack.Screen
+            name="MockupKYCDashboard"
+            component={MockupKYCDashboard}
           />
-          <Stack.Screen 
-            name="MockupAadhaarVerification" 
-            component={MockupAadhaarVerification} 
+          <Stack.Screen
+            name="MockupAadhaarVerification"
+            component={MockupAadhaarVerification}
           />
-          <Stack.Screen 
-            name="MockupSignedCertificate" 
-            component={MockupSignedCertificate} 
+          <Stack.Screen
+            name="MockupSignedCertificate"
+            component={MockupSignedCertificate}
           />
         </Stack.Navigator>
       </NavigationContainer>
