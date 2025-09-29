@@ -191,8 +191,13 @@ const KYCDashboardScreen = () => {
               } catch (error) {
                 console.error('Failed to disconnect:', error);
                 const errorMessage =
-                  error instanceof Error ? error.message : 'Unknown error occurred';
-                Alert.alert('Error', `Failed to disconnect from devices: ${errorMessage}`);
+                  error instanceof Error
+                    ? error.message
+                    : 'Unknown error occurred';
+                Alert.alert(
+                  'Error',
+                  `Failed to disconnect from devices: ${errorMessage}`,
+                );
               }
             },
           },
@@ -216,27 +221,42 @@ const KYCDashboardScreen = () => {
         address: device.deviceAddress,
         status: device.status,
       });
-      
+
       const connectionResult = await P2PService.connectToDevice(device);
       console.log('KYCDashboard - Connection result:', connectionResult);
 
       if (!connectionResult) {
-        Alert.alert('Connection Failed', `Could not connect to ${device.deviceName}`);
+        Alert.alert(
+          'Connection Failed',
+          `Could not connect to ${device.deviceName}`,
+        );
         return;
       }
 
       // Wait a moment for socket connection to stabilize
-      console.log('KYCDashboard - Connection established, waiting for socket to be ready...');
+      console.log(
+        'KYCDashboard - Connection established, waiting for socket to be ready...',
+      );
       await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds for stability
 
       // Verify connection is established
       const connectedDevices = P2PService.getConnectedDevices();
-      console.log('KYCDashboard - Currently connected devices:', connectedDevices);
-      
-      const isConnected = connectedDevices.some(d => d.deviceAddress === device.deviceAddress);
+      console.log(
+        'KYCDashboard - Currently connected devices:',
+        connectedDevices,
+      );
+
+      const isConnected = connectedDevices.some(
+        d => d.deviceAddress === device.deviceAddress,
+      );
       if (!isConnected) {
-        console.error('KYCDashboard - Device not in connected list after connection attempt');
-        Alert.alert('Connection Issue', `Connection to ${device.deviceName} not stable. Please try again.`);
+        console.error(
+          'KYCDashboard - Device not in connected list after connection attempt',
+        );
+        Alert.alert(
+          'Connection Issue',
+          `Connection to ${device.deviceName} not stable. Please try again.`,
+        );
         return;
       }
 
@@ -260,14 +280,18 @@ const KYCDashboardScreen = () => {
 
       while (!success && attempts < maxAttempts) {
         attempts++;
-        console.log(`KYCDashboard - Sending attempt ${attempts}/${maxAttempts}`);
+        console.log(
+          `KYCDashboard - Sending attempt ${attempts}/${maxAttempts}`,
+        );
 
         try {
           // Check if we're still connected before sending
           const stillConnected = P2PService.getConnectedDevices().some(
-            d => d.deviceAddress === device.deviceAddress
+            d => d.deviceAddress === device.deviceAddress,
           );
-          console.log(`KYCDashboard - Device still connected: ${stillConnected}`);
+          console.log(
+            `KYCDashboard - Device still connected: ${stillConnected}`,
+          );
 
           success = await P2PService.sendMessage(
             JSON.stringify(consentData),
@@ -275,14 +299,23 @@ const KYCDashboardScreen = () => {
             'consent',
           );
 
-          console.log(`KYCDashboard - Send attempt ${attempts} result: ${success}`);
+          console.log(
+            `KYCDashboard - Send attempt ${attempts} result: ${success}`,
+          );
 
           if (!success && attempts < maxAttempts) {
-            console.log(`KYCDashboard - Send failed, waiting before retry ${attempts + 1}...`);
+            console.log(
+              `KYCDashboard - Send failed, waiting before retry ${
+                attempts + 1
+              }...`,
+            );
             await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
           }
         } catch (sendError) {
-          console.error(`KYCDashboard - Send attempt ${attempts} failed:`, sendError);
+          console.error(
+            `KYCDashboard - Send attempt ${attempts} failed:`,
+            sendError,
+          );
           if (attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
@@ -306,7 +339,10 @@ const KYCDashboardScreen = () => {
       console.error('KYCDashboard - Failed to send consent:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert('Error', `Failed to connect and send consent: ${errorMessage}`);
+      Alert.alert(
+        'Error',
+        `Failed to connect and send consent: ${errorMessage}`,
+      );
     }
   };
 
@@ -354,16 +390,20 @@ const KYCDashboardScreen = () => {
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[
-                styles.button, 
+                styles.button,
                 styles.submitButton,
-                (isInitializingP2P || isDiscovering) && styles.submitButtonDisabled,
+                (isInitializingP2P || isDiscovering) &&
+                  styles.submitButtonDisabled,
               ]}
               onPress={handleConsentSubmission}
               disabled={isInitializingP2P || isDiscovering}
             >
               <Text style={styles.submitButtonText}>
-                {isInitializingP2P ? 'Initializing P2P...' : 
-                 isDiscovering ? 'Discovering...' : 'Declare'}
+                {isInitializingP2P
+                  ? 'Initializing P2P...'
+                  : isDiscovering
+                  ? 'Discovering...'
+                  : 'Declare'}
               </Text>
             </TouchableOpacity>
 

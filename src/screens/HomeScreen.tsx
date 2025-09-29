@@ -6,12 +6,22 @@ import {
   TouchableOpacity,
   StatusBar,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../App';
 import ScannerScreen from './ScannerScreen';
 import KYCDashboardScreen from './KYCDashboardScreen';
 import ShowAadhaarDataScreen from './ShowAadhaarDataScreen';
 
+type HomeScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Home'
+>;
+
 const HomeScreen = () => {
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const [activeTab, setActiveTab] = useState<'home' | 'kyc' | 'scanner'>(
     'home',
   );
@@ -33,8 +43,28 @@ const HomeScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f6f3" />
 
+      {/* Quick Actions */}
+      <View style={styles.mockupSection}>
+        <Text style={styles.mockupTitle}>Quick Actions</Text>
+        <View style={styles.mockupButtons}>
+          <TouchableOpacity
+            style={styles.mockupButton}
+            onPress={() => navigation.navigate('MockupKYCDashboard')}
+          >
+            <Text style={styles.mockupButtonText}>KYC Process</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.mockupButton}
+            onPress={() => navigation.navigate('MockupAadhaarVerification')}
+          >
+            <Text style={styles.mockupButtonText}>Verification</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Content */}
-      <View style={styles.content}>{renderContent()}</View>
+      {/* <View style={styles.content}>{renderContent()}</View> */}
 
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
@@ -375,6 +405,56 @@ const styles = StyleSheet.create({
   p2pButtonDescription: {
     fontSize: 12,
     color: '#6b5e4f',
+  },
+  // Mockup Section Styles
+  mockupSection: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e8e3db',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mockupTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2c2419',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  mockupButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 16,
+  },
+  mockupButton: {
+    flex: 1,
+    backgroundColor: '#f0eae0',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d4c4a0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  mockupButtonIcon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  mockupButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2c2419',
+    textAlign: 'center',
   },
 });
 

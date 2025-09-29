@@ -18,6 +18,9 @@ import P2PMessagingScreen from './src/screens/P2PMessagingScreen';
 import P2PTestScreen from './src/screens/P2PTestScreen';
 import KYCDashboardScreen from './src/screens/KYCDashboardScreen';
 import ShowAadhaarDataScreen from './src/screens/ShowAadhaarDataScreen';
+import MockupKYCDashboard from './src/mockups/MockupKYCDashboard';
+import MockupAadhaarVerification from './src/mockups/MockupAadhaarVerification';
+import MockupSignedCertificate from './src/mockups/MockupSignedCertificate';
 
 // Define the navigation types
 export type RootStackParamList = {
@@ -31,6 +34,16 @@ export type RootStackParamList = {
   P2PTest: undefined;
   KYCDashboard: undefined;
   ShowAadhaarData: undefined;
+  MockupKYCDashboard: undefined;
+  MockupAadhaarVerification: undefined;
+  MockupSignedCertificate: {
+    consentData: {
+      consentText: string;
+      signedAt: string;
+      status: string;
+      consentId: string;
+    };
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -61,6 +74,18 @@ export default function App() {
           <Stack.Screen
             name="ShowAadhaarData"
             component={ShowAadhaarDataScreen}
+          />
+          <Stack.Screen 
+            name="MockupKYCDashboard" 
+            component={MockupKYCDashboard} 
+          />
+          <Stack.Screen 
+            name="MockupAadhaarVerification" 
+            component={MockupAadhaarVerification} 
+          />
+          <Stack.Screen 
+            name="MockupSignedCertificate" 
+            component={MockupSignedCertificate} 
           />
         </Stack.Navigator>
       </NavigationContainer>
