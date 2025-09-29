@@ -82,7 +82,7 @@ const ScannerScreen = () => {
 
     try {
       const result = await verifySignature(data);
-      navigation.navigate('VerificationResult', { result });
+      navigation.navigate('VerificationResult', { result } as never);
     } catch (error) {
       console.error('Error verifying signature:', error);
       Alert.alert(

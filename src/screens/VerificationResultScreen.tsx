@@ -27,7 +27,7 @@ type VerificationResultScreenRouteProp = RouteProp<
 const VerificationResultScreen = () => {
   const navigation = useNavigation<VerificationResultScreenNavigationProp>();
   const route = useRoute<VerificationResultScreenRouteProp>();
-  const { result } = route.params;
+  const { verificationResult: result } = route.params;
   const insets = useSafeAreaInsets();
 
   const handleDone = () => {
